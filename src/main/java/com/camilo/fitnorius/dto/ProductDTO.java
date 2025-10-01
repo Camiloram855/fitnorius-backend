@@ -1,0 +1,19 @@
+package com.camilo.fitnorius.dto;
+
+import lombok.*;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class ProductDTO {
+    private Long id;
+    private String name;
+    private Double price;
+    private Double oldPrice;
+    private Double discount;
+    private String imageUrl;
+
+    private Long categoryId;   // Relación con categoría
+    private String categoryName;
+}
