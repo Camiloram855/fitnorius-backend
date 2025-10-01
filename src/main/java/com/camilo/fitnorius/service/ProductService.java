@@ -38,26 +38,25 @@ public class ProductService {
             Files.createDirectories(Paths.get(UPLOAD_DIR));
             String fileName = System.currentTimeMillis() + "_" + image.getOriginalFilename();
             Path filePath = Paths.get(UPLOAD_DIR, fileName);
-            Files.write(filePath, image.getBytes());
+            Files.write(filePath, image.getBytes(), StandardOpenOption.CREATE);
             product.setImageUrl("/" + UPLOAD_DIR + fileName);
         }
 
-        Product saved = productRepository.save(product);
-        return mapToDTO(saved);
-    }
-
-    public List<ProductDTO> getProductsByCategory(Long categoryId) {
-        return productRepository.findByCategoryId(categoryId)
-                .stream()
-                .map(this::mapToDTO)
-                .toList();
+        return mapToDTO(productRepository.save(product));
     }
 
     public List<ProductDTO> getAllProducts() {
-        return productRepository.findAll()
-                .stream()
-                .map(this::mapToDTO)
-                .toList();
+        return productRepository.findAll().stream().map(this::mapToDTO).toList();
+    }
+
+    public List<ProductDTO> getProductsByCategory(Long categoryId) {
+        return productRepository.findByCategoryId(categoryId).stream().map(this::mapToDTO).toList();
+    }
+
+    public ProductDTO getProductById(Long id) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + id));
+        return mapToDTO(product);
     }
 
     private ProductDTO mapToDTO(Product product) {

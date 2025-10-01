@@ -16,16 +16,12 @@ public class Product {
     private Long id;
 
     private String name;
-
     private Double price;
+    private Double oldPrice;   // precio tachado (opcional)
+    private Double discount;   // descuento en %
+    private String imageUrl;   // ruta de la imagen
 
-    private Double oldPrice; // precio tachado (opcional)
-
-    private Double discount; // descuento en %
-
-    private String imageUrl; // ruta donde guardas la imagen
-
-    // Relación con Category
+    // Relación con categoría
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
     @ToString.Exclude

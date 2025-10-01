@@ -13,7 +13,6 @@ public class ProductDTO {
     private Double oldPrice;
     private Double discount;
     private String imageUrl;
-
-    private Long categoryId;   // Relación con categoría
+    private Long categoryId;
     private String categoryName;
 }
