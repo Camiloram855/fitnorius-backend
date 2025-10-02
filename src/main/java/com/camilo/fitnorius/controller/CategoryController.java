@@ -34,10 +34,18 @@ public class CategoryController {
         return ResponseEntity.ok(savedCategory);
     }
 
-    // Eliminar categoría
+    // Eliminar categoría y sus productos
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteCategory(@PathVariable Long id) {
-        boolean deleted = categoryService.deleteCategory(id);
-        return deleted ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
+    public ResponseEntity<String> deleteCategory(@PathVariable Long id) {
+        try {
+            boolean deleted = categoryService.deleteCategoryWithProducts(id);
+            if (deleted) {
+                return ResponseEntity.ok("Categoría y productos eliminados correctamente.");
+            } else {
+                return ResponseEntity.notFound().build();
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error al eliminar la categoría: " + e.getMessage());
+        }
     }
 }
