@@ -12,6 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -67,6 +68,28 @@ public class ProductService {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + id));
         return mapToDTO(product);
+    }
+
+    // ✅ Eliminar producto con borrado de imagen
+    public boolean deleteProduct(Long id) {
+        Optional<Product> productOpt = productRepository.findById(id);
+        if (productOpt.isPresent()) {
+            Product product = productOpt.get();
+
+            // Si tiene imagen, eliminarla del disco
+            if (product.getImageUrl() != null) {
+                Path imagePath = Paths.get(product.getImageUrl().replaceFirst("/", ""));
+                try {
+                    Files.deleteIfExists(imagePath);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            productRepository.deleteById(id);
+            return true;
+        }
+        return false;
     }
 
     // Mapper
