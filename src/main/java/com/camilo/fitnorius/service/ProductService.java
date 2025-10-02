@@ -22,6 +22,7 @@ public class ProductService {
 
     private static final String UPLOAD_DIR = "uploads/products/";
 
+    // Crear producto
     public ProductDTO saveProduct(ProductDTO request, MultipartFile image) throws IOException {
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new RuntimeException("Categoría no encontrada con ID: " + request.getCategoryId()));
@@ -45,20 +46,30 @@ public class ProductService {
         return mapToDTO(productRepository.save(product));
     }
 
+    // Listar todos
     public List<ProductDTO> getAllProducts() {
-        return productRepository.findAll().stream().map(this::mapToDTO).toList();
+        return productRepository.findAll()
+                .stream()
+                .map(this::mapToDTO)
+                .toList();
     }
 
+    // Listar por categoría
     public List<ProductDTO> getProductsByCategory(Long categoryId) {
-        return productRepository.findByCategoryId(categoryId).stream().map(this::mapToDTO).toList();
+        return productRepository.findByCategoryId(categoryId)
+                .stream()
+                .map(this::mapToDTO)
+                .toList();
     }
 
+    // Buscar por ID
     public ProductDTO getProductById(Long id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + id));
         return mapToDTO(product);
     }
 
+    // Mapper
     private ProductDTO mapToDTO(Product product) {
         return ProductDTO.builder()
                 .id(product.getId())

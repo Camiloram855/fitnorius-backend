@@ -1,5 +1,6 @@
 package com.camilo.fitnorius.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -19,11 +20,12 @@ public class Product {
     private Double price;
     private Double oldPrice;   // precio tachado (opcional)
     private Double discount;   // descuento en %
-    private String imageUrl;   // ruta de la imagen
+    private String imageUrl;   // ruta donde guardas la imagen
 
-    // Relación con categoría
+    // Relación con Category
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
     @ToString.Exclude
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"}) // 🔑 evita errores al serializar con LAZY
     private Category category;
 }
