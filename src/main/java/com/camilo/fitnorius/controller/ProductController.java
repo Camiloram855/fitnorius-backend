@@ -26,18 +26,12 @@ public class ProductController {
     public ResponseEntity<ProductDTO> createProductMultipart(
             @RequestPart("product") ProductDTO request,
             @RequestPart(value = "image", required = false) MultipartFile image
-    ) {
-        try {
-            return ResponseEntity.ok(productService.saveProduct(request, image));
-        } catch (IOException e) {
-            e.printStackTrace();
-            return ResponseEntity.badRequest().build();
-        }
+    ) throws IOException {
+        return ResponseEntity.ok(productService.saveProduct(request, image));
     }
 
     /**
      * Alternativa: Crear producto usando @ModelAttribute
-     * (soporta directamente form-data con campos simples)
      */
     @PostMapping("/form")
     public ResponseEntity<ProductDTO> createProductForm(
@@ -45,6 +39,14 @@ public class ProductController {
             @RequestParam(value = "image", required = false) MultipartFile image
     ) throws IOException {
         return ResponseEntity.ok(productService.saveProduct(productDTO, image));
+    }
+
+    /**
+     * Crear producto solo con JSON (sin imagen)
+     */
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ProductDTO> createProductJson(@RequestBody ProductDTO productDTO) {
+        return ResponseEntity.ok(productService.saveProduct(productDTO, null));
     }
 
     /**
@@ -69,6 +71,33 @@ public class ProductController {
     @GetMapping("/{id}")
     public ResponseEntity<ProductDTO> getProductById(@PathVariable Long id) {
         return ResponseEntity.ok(productService.getProductById(id));
+    }
+
+    /**
+     * Actualizar producto con multipart (JSON + Imagen opcional)
+     */
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ProductDTO> updateProductMultipart(
+            @PathVariable Long id,
+            @RequestPart("product") ProductDTO request,
+            @RequestPart(value = "image", required = false) MultipartFile image
+    ) {
+        if (image != null && !image.isEmpty()) {
+            return ResponseEntity.ok(productService.updateProduct(id, request, image));
+        } else {
+            return ResponseEntity.ok(productService.updateProduct(id, request, null));
+        }
+    }
+
+    /**
+     * Actualizar producto solo con JSON (sin imagen)
+     */
+    @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ProductDTO> updateProductJson(
+            @PathVariable Long id,
+            @RequestBody ProductDTO request
+    ) {
+        return ResponseEntity.ok(productService.updateProduct(id, request, null));
     }
 
     /**

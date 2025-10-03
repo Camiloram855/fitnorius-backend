@@ -15,4 +15,5 @@ public class ProductDTO {
     private String imageUrl;
     private Long categoryId;
     private String categoryName;
+    private String description; // ✅ Nuevo campo para descripción del producto
 }

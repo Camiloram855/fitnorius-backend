@@ -22,10 +22,13 @@ public class Product {
     private Double discount;   // descuento en %
     private String imageUrl;   // ruta donde guardas la imagen
 
+    @Column(columnDefinition = "TEXT") // 👈 permite textos largos
+    private String description; // descripción del producto
+
     // Relación con Category
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
     @ToString.Exclude
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"}) // 🔑 evita errores al serializar con LAZY
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Category category;
 }

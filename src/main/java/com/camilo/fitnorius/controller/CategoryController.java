@@ -48,4 +48,16 @@ public class CategoryController {
             return ResponseEntity.status(500).body("Error al eliminar la categoría: " + e.getMessage());
         }
     }
+
+    // 🔄 Actualizar categoría (nombre y opcionalmente imagen)
+    @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
+    public ResponseEntity<Category> updateCategory(
+            @PathVariable Long id,
+            @RequestParam("name") String name,
+            @RequestParam(value = "image", required = false) MultipartFile imageFile) throws IOException {
+
+        Category updatedCategory = categoryService.updateCategory(id, name, imageFile);
+        return ResponseEntity.ok(updatedCategory);
+    }
+
 }

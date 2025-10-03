@@ -50,6 +50,38 @@ public class CategoryService {
     }
 
     /**
+     * 🔄 Actualiza una categoría (nombre y opcionalmente imagen).
+     */
+    @Transactional
+    public Category updateCategory(Long id, String name, MultipartFile imageFile) throws IOException {
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Categoría no encontrada"));
+
+        // actualizar el nombre
+        category.setName(name);
+
+        // si hay nueva imagen, reemplazar
+        if (imageFile != null && !imageFile.isEmpty()) {
+            // eliminar imagen anterior
+            deleteCategoryImage(category);
+
+            String fileName = System.currentTimeMillis() + "_" + imageFile.getOriginalFilename();
+            Path uploadPath = Paths.get(uploadDir);
+
+            if (!Files.exists(uploadPath)) {
+                Files.createDirectories(uploadPath);
+            }
+
+            Path filePath = uploadPath.resolve(fileName);
+            Files.copy(imageFile.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+            category.setImage("/" + uploadDir + fileName);
+        }
+
+        return categoryRepository.save(category);
+    }
+
+    /**
      * Elimina solo la categoría (si no tiene productos asociados).
      */
     @Transactional

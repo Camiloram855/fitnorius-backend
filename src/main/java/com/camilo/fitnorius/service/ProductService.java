@@ -23,8 +23,8 @@ public class ProductService {
 
     private static final String UPLOAD_DIR = "uploads/products/";
 
-    // Crear producto
-    public ProductDTO saveProduct(ProductDTO request, MultipartFile image) throws IOException {
+    // ✅ Crear producto
+    public ProductDTO saveProduct(ProductDTO request, MultipartFile image) {
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new RuntimeException("Categoría no encontrada con ID: " + request.getCategoryId()));
 
@@ -33,21 +33,56 @@ public class ProductService {
                 .price(request.getPrice())
                 .oldPrice(request.getOldPrice())
                 .discount(request.getDiscount())
+                .description(request.getDescription())
                 .category(category)
                 .build();
 
+        // Guardar imagen si existe
         if (image != null && !image.isEmpty()) {
-            Files.createDirectories(Paths.get(UPLOAD_DIR));
-            String fileName = System.currentTimeMillis() + "_" + image.getOriginalFilename();
-            Path filePath = Paths.get(UPLOAD_DIR, fileName);
-            Files.write(filePath, image.getBytes(), StandardOpenOption.CREATE);
-            product.setImageUrl("/" + UPLOAD_DIR + fileName);
+            try {
+                product.setImageUrl(saveImage(image));
+            } catch (IOException e) {
+                e.printStackTrace(); // logueamos el error pero no rompemos la app
+            }
         }
 
         return mapToDTO(productRepository.save(product));
     }
 
-    // Listar todos
+    // ✅ Actualizar producto existente
+    public ProductDTO updateProduct(Long id, ProductDTO request, MultipartFile image) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + id));
+
+        // Actualizar campos básicos
+        product.setName(request.getName());
+        product.setPrice(request.getPrice());
+        product.setOldPrice(request.getOldPrice());
+        product.setDiscount(request.getDiscount());
+        product.setDescription(request.getDescription());
+
+        // Actualizar categoría si es necesario
+        if (request.getCategoryId() != null) {
+            Category category = categoryRepository.findById(request.getCategoryId())
+                    .orElseThrow(() -> new RuntimeException("Categoría no encontrada con ID: " + request.getCategoryId()));
+            product.setCategory(category);
+        }
+
+        // Si llega nueva imagen → reemplazar
+        if (image != null && !image.isEmpty()) {
+            try {
+                String newImageUrl = saveImage(image);
+                deleteOldImage(product.getImageUrl());
+                product.setImageUrl(newImageUrl);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        return mapToDTO(productRepository.save(product));
+    }
+
+    // ✅ Listar todos
     public List<ProductDTO> getAllProducts() {
         return productRepository.findAll()
                 .stream()
@@ -55,7 +90,7 @@ public class ProductService {
                 .toList();
     }
 
-    // Listar por categoría
+    // ✅ Listar por categoría
     public List<ProductDTO> getProductsByCategory(Long categoryId) {
         return productRepository.findByCategoryId(categoryId)
                 .stream()
@@ -63,7 +98,7 @@ public class ProductService {
                 .toList();
     }
 
-    // Buscar por ID
+    // ✅ Buscar por ID
     public ProductDTO getProductById(Long id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + id));
@@ -76,15 +111,8 @@ public class ProductService {
         if (productOpt.isPresent()) {
             Product product = productOpt.get();
 
-            // Si tiene imagen, eliminarla del disco
-            if (product.getImageUrl() != null) {
-                Path imagePath = Paths.get(product.getImageUrl().replaceFirst("/", ""));
-                try {
-                    Files.deleteIfExists(imagePath);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
+            // Borrar imagen asociada
+            deleteOldImage(product.getImageUrl());
 
             productRepository.deleteById(id);
             return true;
@@ -92,7 +120,28 @@ public class ProductService {
         return false;
     }
 
-    // Mapper
+    // ✅ Guardar imagen en disco
+    private String saveImage(MultipartFile image) throws IOException {
+        Files.createDirectories(Paths.get(UPLOAD_DIR));
+        String fileName = System.currentTimeMillis() + "_" + image.getOriginalFilename();
+        Path filePath = Paths.get(UPLOAD_DIR, fileName);
+        Files.write(filePath, image.getBytes(), StandardOpenOption.CREATE);
+        return "/" + UPLOAD_DIR + fileName;
+    }
+
+    // ✅ Eliminar imagen vieja de forma segura
+    private void deleteOldImage(String imageUrl) {
+        if (imageUrl != null) {
+            Path oldImagePath = Paths.get(imageUrl.replaceFirst("^/", ""));
+            try {
+                Files.deleteIfExists(oldImagePath); // ✅ no necesita Files.exists()
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    // ✅ Mapper
     private ProductDTO mapToDTO(Product product) {
         return ProductDTO.builder()
                 .id(product.getId())
@@ -100,6 +149,7 @@ public class ProductService {
                 .price(product.getPrice())
                 .oldPrice(product.getOldPrice())
                 .discount(product.getDiscount())
+                .description(product.getDescription())
                 .imageUrl(product.getImageUrl())
                 .categoryId(product.getCategory().getId())
                 .categoryName(product.getCategory().getName())
