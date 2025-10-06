@@ -110,31 +110,43 @@ public class ProductService {
         Optional<Product> productOpt = productRepository.findById(id);
         if (productOpt.isPresent()) {
             Product product = productOpt.get();
-
-            // Borrar imagen asociada
             deleteOldImage(product.getImageUrl());
-
             productRepository.deleteById(id);
             return true;
         }
         return false;
     }
 
-    // ✅ Guardar imagen en disco
+    // ✅ Nuevo método: búsqueda por nombre o descripción (para tu SearchSection)
+    public List<ProductDTO> searchProducts(String query) {
+        if (query == null || query.trim().isEmpty()) {
+            return getAllProducts(); // devuelve todos si no hay query
+        }
+
+        return productRepository
+                .findByNameContainingIgnoreCaseOrDescriptionContainingIgnoreCase(query, query)
+                .stream()
+                .map(this::mapToDTO)
+                .toList();
+    }
+
+    // ✅ Guardar imagen en disco y devolver una URL accesible públicamente
     private String saveImage(MultipartFile image) throws IOException {
         Files.createDirectories(Paths.get(UPLOAD_DIR));
-        String fileName = System.currentTimeMillis() + "_" + image.getOriginalFilename();
-        Path filePath = Paths.get(UPLOAD_DIR, fileName);
+        String fileName = System.currentTimeMillis() + "_" + Paths.get(image.getOriginalFilename()).getFileName();
+        Path filePath = Paths.get(UPLOAD_DIR, fileName.toString());
         Files.write(filePath, image.getBytes(), StandardOpenOption.CREATE);
-        return "/" + UPLOAD_DIR + fileName;
+
+        // Devuelve una ruta web accesible desde el frontend
+        return "/uploads/products/" + fileName;
     }
 
     // ✅ Eliminar imagen vieja de forma segura
     private void deleteOldImage(String imageUrl) {
-        if (imageUrl != null) {
+        if (imageUrl != null && imageUrl.startsWith("/uploads/")) {
             Path oldImagePath = Paths.get(imageUrl.replaceFirst("^/", ""));
             try {
-                Files.deleteIfExists(oldImagePath); // ✅ no necesita Files.exists()
+                Files.deleteIfExists(oldImagePath);
             } catch (IOException e) {
                 e.printStackTrace();
             }

@@ -12,12 +12,21 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // 📂 Carpeta donde guardamos imágenes
-        Path uploadDir = Paths.get("uploads/products");
-        String uploadPath = uploadDir.toFile().getAbsolutePath();
+        // 📁 Carpeta principal de imágenes de productos
+        Path productUploadDir = Paths.get(System.getProperty("user.dir"), "uploads", "products");
+        String productUploadPath = productUploadDir.toFile().getAbsolutePath();
 
-        // 🔗 Acceso a las imágenes en: http://localhost:8080/uploads/products/imagen.jpg
+        // ✅ Servir imágenes de productos
         registry.addResourceHandler("/uploads/products/**")
-                .addResourceLocations("file:" + uploadPath + "/");
+                .addResourceLocations("file:" + productUploadPath + "/")
+                .setCachePeriod(3600); // (Opcional) cache de 1 hora para mejorar rendimiento
+
+        // ⚙️ (Opcional) En caso de que más adelante agregues imágenes de categorías, usuarios, etc.
+        Path uploadBaseDir = Paths.get("uploads");
+        String uploadBasePath = uploadBaseDir.toFile().getAbsolutePath();
+
+        registry.addResourceHandler("/uploads/**")
+                .addResourceLocations("file:" + uploadBasePath + "/")
+                .setCachePeriod(3600);
     }
 }
