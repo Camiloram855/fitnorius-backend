@@ -30,4 +30,4 @@ databases:
   - name: fitnorius-db
     databaseName: fitnorius
     plan: free
-    engine: mysql
+    ipAllowList: [] # 👈 permite conexión del backend al DB
