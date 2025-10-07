@@ -4,7 +4,9 @@ services:
     name: fitnorius-backend
     env: docker
     plan: free
-    buildCommand: "./mvnw clean package -DskipTests || mvn clean package -DskipTests"
+    # Render usará Dockerfile, así que NO se necesita buildCommand ni startCommand
+    buildCommand: ""
+    startCommand: ""
     envVars:
       - key: SPRING_DATASOURCE_URL
         fromDatabase:
@@ -22,12 +24,13 @@ services:
         value: update
       - key: SPRING_JPA_SHOW_SQL
         value: "true"
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
       - key: PORT
-        value: 8080
+        value: "8080"
 
 databases:
-  # 🗄️ Base de datos MySQL gestionada por Render
+  # 🗄️ Base de datos PostgreSQL (Render no soporta MySQL en plan gratuito)
   - name: fitnorius-db
-    databaseName: fitnorius
     plan: free
-    ipAllowList: [] # 👈 permite conexión del backend al DB
+    ipAllowList: [] # Permite acceso desde el backend

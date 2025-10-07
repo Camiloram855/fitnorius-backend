@@ -1,17 +1,21 @@
-# Imagen base con Java 17
-FROM eclipse-temurin:17-jdk
+# Usa una imagen de Java
+FROM eclipse-temurin:17-jdk-alpine
 
-# Directorio de trabajo
+# Crea carpeta de trabajo
 WORKDIR /app
 
-# Copiar archivos del proyecto
-COPY . .
+# Copia pom.xml y descarga dependencias
+COPY pom.xml .
+RUN mvn dependency:go-offline
 
-# Compilar el backend (usa Maven wrapper si existe)
-RUN ./mvnw clean package -DskipTests || mvn clean package -DskipTests
+# Copia el código fuente
+COPY src ./src
 
-# Exponer el puerto
+# Compila el proyecto
+RUN mvn package -DskipTests
+
+# Expone el puerto
 EXPOSE 8080
 
-# Ejecutar el .jar resultante
+# Comando para ejecutar el JAR
 CMD ["java", "-jar", "target/fitnorius-backend-0.0.1-SNAPSHOT.jar"]
