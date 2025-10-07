@@ -1,10 +1,33 @@
 services:
+  # 🚀 Backend Java (Spring Boot)
   - type: web
     name: fitnorius-backend
     env: docker
     plan: free
     buildCommand: "./mvnw clean package -DskipTests || mvn clean package -DskipTests"
-    startCommand: "java -jar target/fitnorius-backend-0.0.1-SNAPSHOT.jar"
     envVars:
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: fitnorius-db
+          property: connectionString
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: fitnorius-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: fitnorius-db
+          property: password
+      - key: SPRING_JPA_HIBERNATE_DDL_AUTO
+        value: update
+      - key: SPRING_JPA_SHOW_SQL
+        value: "true"
       - key: PORT
         value: 8080
+
+databases:
+  # 🗄️ Base de datos MySQL gestionada por Render
+  - name: fitnorius-db
+    databaseName: fitnorius
+    plan: free
+    engine: mysql
