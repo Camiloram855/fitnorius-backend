@@ -1,29 +1,23 @@
-# 🚀 Imagen base con Microsoft OpenJDK 17
-FROM mcr.microsoft.com/openjdk/jdk:17-ubuntu
+# Imagen base con Java 17
+FROM openjdk:17-jdk-slim
 
-# 📁 Directorio de trabajo dentro del contenedor
+# Directorio de trabajo
 WORKDIR /app
 
-# 📦 Instala Maven (necesario si no usas mvnw)
-RUN apt-get update && apt-get install -y maven && rm -rf /var/lib/apt/lists/*
-
-# 📦 Copia el archivo pom.xml y descarga dependencias
+# Copiamos el pom.xml y descargamos dependencias
 COPY pom.xml .
-RUN mvn dependency:go-offline -B
+COPY mvnw .
+COPY .mvn .mvn
+RUN ./mvnw dependency:go-offline -B
 
-# 📦 Copia el resto del código fuente (incluye mvnw si existe)
+# Copiamos todo el proyecto
 COPY . .
 
-# ✅ Da permiso de ejecución al wrapper de Maven (si existe)
-RUN chmod +x mvnw || true
+# Construimos la aplicación
+RUN ./mvnw clean package -DskipTests
 
-# 🧱 Empaqueta la aplicación (usa mvnw si existe, si no usa mvn)
-RUN ./mvnw clean package -DskipTests || mvn clean package -DskipTests
+# Exponemos el puerto (Render usa 10000)
+EXPOSE 10000
 
-# 🔥 Expone el puerto donde correrá tu app
-EXPOSE 8080
-
-# 🏁 Comando para ejecutar la app
-ENTRYPOINT ["java", "-jar", "target/fitnorius-backend-0.0.1-SNAPSHOT.jar"]
-
-
+# Comando de inicio
+ENTRYPOINT ["java", "-jar", "target/app.jar"]
