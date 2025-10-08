@@ -24,4 +24,6 @@ RUN ./mvnw clean package -DskipTests || mvn clean package -DskipTests
 EXPOSE 8080
 
 # 🏁 Comando para ejecutar la app
-ENTRYPOINT ["java", "-jar", "target/fitnorius-0.0.1-SNAPSHOT.jar"]
+ENTRYPOINT ["java", "-jar", "target/fitnorius-backend-0.0.1-SNAPSHOT.jar"]
+
+
