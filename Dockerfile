@@ -4,16 +4,21 @@ FROM openjdk:17-jdk-slim
 # Directorio de trabajo
 WORKDIR /app
 
-# Copiamos el pom.xml y descargamos dependencias
-COPY pom.xml .
+# Copiamos archivos de Maven wrapper
 COPY mvnw .
 COPY .mvn .mvn
+
+# 🔧 Dar permisos de ejecución al script mvnw
+RUN chmod +x mvnw
+
+# Descargamos dependencias para cachear
+COPY pom.xml .
 RUN ./mvnw dependency:go-offline -B
 
-# Copiamos todo el proyecto
+# Copiamos el resto del proyecto
 COPY . .
 
-# Construimos la aplicación
+# Construimos la app (sin correr tests)
 RUN ./mvnw clean package -DskipTests
 
 # Exponemos el puerto (Render usa 10000)
