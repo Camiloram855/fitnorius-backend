@@ -117,7 +117,7 @@ public class ProductService {
         return false;
     }
 
-    // ✅ Nuevo método: búsqueda por nombre o descripción (para tu SearchSection)
+    // ✅ Nuevo metodo: búsqueda por nombre o descripción (para tu SearchSection)
     public List<ProductDTO> searchProducts(String query) {
         if (query == null || query.trim().isEmpty()) {
             return getAllProducts(); // devuelve todos si no hay query

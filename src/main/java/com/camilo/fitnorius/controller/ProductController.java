@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -33,18 +34,6 @@ public class ProductController {
     }
 
     /**
-     * Alternativa: Crear producto usando @ModelAttribute
-     * 👉 Ruta: POST /api/products/form
-     */
-    @PostMapping("/form")
-    public ResponseEntity<ProductDTO> createProductForm(
-            @ModelAttribute ProductDTO productDTO,
-            @RequestParam(value = "image", required = false) MultipartFile image
-    ) throws IOException {
-        return ResponseEntity.ok(productService.saveProduct(productDTO, image));
-    }
-
-    /**
      * Crear producto solo con JSON (sin imagen)
      * 👉 Ruta: POST /api/products/json
      */
@@ -55,7 +44,6 @@ public class ProductController {
 
     /**
      * Listar todos los productos
-     * 👉 Ruta: GET /api/products
      */
     @GetMapping
     public ResponseEntity<List<ProductDTO>> getAllProducts() {
@@ -64,7 +52,6 @@ public class ProductController {
 
     /**
      * Listar productos por categoría
-     * 👉 Ruta: GET /api/products/category/{categoryId}
      */
     @GetMapping("/category/{categoryId}")
     public ResponseEntity<List<ProductDTO>> getProductsByCategory(@PathVariable Long categoryId) {
@@ -73,31 +60,10 @@ public class ProductController {
 
     /**
      * Obtener un producto por ID
-     * 👉 Ruta: GET /api/products/{id}
      */
     @GetMapping("/{id}")
     public ResponseEntity<ProductDTO> getProductById(@PathVariable Long id) {
         return ResponseEntity.ok(productService.getProductById(id));
-    }
-
-    /**
-     * 🔍 Buscar productos por nombre, descripción o categoría (GET)
-     * 👉 Ruta: GET /api/products/search?query=texto
-     */
-    @GetMapping("/search")
-    public ResponseEntity<List<ProductDTO>> searchProducts(@RequestParam("query") String query) {
-        return ResponseEntity.ok(productService.searchProducts(query));
-    }
-
-    /**
-     * 🔍 Buscar productos por nombre, descripción o categoría (POST)
-     * 👉 Ruta: POST /api/products/search
-     * Permite enviar { "query": "texto" } en el cuerpo JSON.
-     */
-    @PostMapping(value = "/search", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<List<ProductDTO>> searchProductsPost(@RequestBody Map<String, String> body) {
-        String query = body.get("query");
-        return ResponseEntity.ok(productService.searchProducts(query));
     }
 
     /**
@@ -126,12 +92,19 @@ public class ProductController {
     }
 
     /**
-     * Eliminar un producto por ID
-     * 👉 Ruta: DELETE /api/products/{id}
+     * 🗑️ Eliminar un producto por ID (ahora devuelve JSON en lugar de 204 vacío)
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
+    public ResponseEntity<Map<String, String>> deleteProduct(@PathVariable Long id) {
         boolean deleted = productService.deleteProduct(id);
-        return deleted ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
+
+        Map<String, String> response = new HashMap<>();
+        if (deleted) {
+            response.put("message", "Producto eliminado correctamente");
+            return ResponseEntity.ok(response);
+        } else {
+            response.put("error", "Producto no encontrado");
+            return ResponseEntity.status(404).body(response);
+        }
     }
 }
