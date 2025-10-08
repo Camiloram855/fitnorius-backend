@@ -1,5 +1,6 @@
 package com.camilo.fitnorius.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
@@ -12,18 +13,21 @@ import java.nio.file.Paths;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
+    // 🌍 Permitir definir orígenes desde variable de entorno (para Render)
+    @Value("${cors.allowed.origins:http://localhost:5173,http://localhost:3000,https://fitnorius.vercel.app,https://fitnorius-4ju5x3nds-juan-ks-projects-b6132ea5.vercel.app}")
+    private String allowedOrigins;
+
     // 🌍 Configuración global de CORS
     @Bean
     public WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
+                // Convertir la cadena de orígenes en array (Render la pasa separada por comas)
+                String[] origins = allowedOrigins.split(",");
+
                 registry.addMapping("/**")
-                        .allowedOrigins(
-                                "http://localhost:5173",   // React local con Vite
-                                "http://localhost:3000",   // React local con CRA
-                                "https://fitnorius-4ju5x3nds-juan-ks-projects-b6132ea5.vercel.app" // tu dominio en Vercel
-                        )
+                        .allowedOrigins(origins)
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowedHeaders("*")
                         .allowCredentials(true);
@@ -43,7 +47,7 @@ public class WebConfig implements WebMvcConfigurer {
                 .addResourceLocations("file:" + productUploadPath + "/")
                 .setCachePeriod(3600);
 
-        // ⚙️ (Opcional) En caso de que agregues más carpetas de imágenes
+        // ⚙️ (General) Servir cualquier archivo dentro de /uploads
         Path uploadBaseDir = Paths.get("uploads");
         String uploadBasePath = uploadBaseDir.toFile().getAbsolutePath();
 
