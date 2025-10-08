@@ -1,12 +1,8 @@
 services:
-  # 🚀 Backend Java (Spring Boot)
   - type: web
     name: fitnorius-backend
     env: docker
     plan: free
-    # Render usará Dockerfile, así que NO se necesita buildCommand ni startCommand
-    buildCommand: ""
-    startCommand: ""
     envVars:
       - key: SPRING_DATASOURCE_URL
         fromDatabase:
@@ -30,7 +26,6 @@ services:
         value: "8080"
 
 databases:
-  # 🗄️ Base de datos PostgreSQL (Render no soporta MySQL en plan gratuito)
   - name: fitnorius-db
     plan: free
-    ipAllowList: [] # Permite acceso desde el backend
+    ipAllowList: [] # Permite conexión del backend

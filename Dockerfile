@@ -1,21 +1,26 @@
-# Usa una imagen de Java
-FROM eclipse-temurin:17-jdk-alpine
-
-# Crea carpeta de trabajo
+# 🧩 Etapa 1: build con Maven y JDK
+FROM maven:3.9.6-eclipse-temurin-17 AS builder
 WORKDIR /app
 
-# Copia pom.xml y descarga dependencias
+# Copiar POM primero para aprovechar caché de dependencias
 COPY pom.xml .
 RUN mvn dependency:go-offline
 
-# Copia el código fuente
+# Copiar el código fuente y compilar
 COPY src ./src
+RUN mvn clean package -DskipTests
 
-# Compila el proyecto
-RUN mvn package -DskipTests
+# 🧩 Etapa 2: runtime (solo el JDK para ejecutar el jar)
+FROM eclipse-temurin:17-jdk
+WORKDIR /app
 
-# Expone el puerto
+# Copiar el JAR generado desde la etapa anterior
+COPY --from=builder /app/target/*.jar app.jar
+
+# Render usa su propia variable de entorno PORT
+# Así que aseguramos que el contenedor escuche en ese puerto dinámico
+ENV PORT=8080
 EXPOSE 8080
 
-# Comando para ejecutar el JAR
-CMD ["java", "-jar", "target/fitnorius-backend-0.0.1-SNAPSHOT.jar"]
+# 🧠 El comando de arranque usará el puerto asignado por Render
+ENTRYPOINT ["sh", "-c", "java -jar app.jar --server.port=${PORT}"]
