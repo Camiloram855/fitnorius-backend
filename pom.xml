@@ -49,17 +49,10 @@
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
-        <!-- 🐬 MySQL (solo para entorno local) -->
+        <!-- 🐬 MySQL (único conector activo) -->
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
-            <scope>runtime</scope>
-        </dependency>
-
-        <!-- 🐘 PostgreSQL (para Render u otros entornos en la nube) -->
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
 
@@ -86,7 +79,7 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
                     <excludes>
-                        <!-- Evita que empaquete dependencias duplicadas -->
+                        <!-- Evita empaquetar dependencias duplicadas -->
                         <exclude>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
