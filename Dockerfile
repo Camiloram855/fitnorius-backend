@@ -1,29 +1,26 @@
-# Imagen base
-FROM openjdk:17-jdk-slim
-
-# Directorio de trabajo
+# ---- Etapa 1: construir el JAR ----
+FROM maven:3.9.6-eclipse-temurin-17 AS builder
 WORKDIR /app
 
-# Copiar Maven Wrapper y darle permisos
-COPY mvnw .
-COPY .mvn .mvn
-RUN chmod +x mvnw
-
-# Copiar pom.xml y descargar dependencias
+# Copiar el pom.xml y descargar dependencias
 COPY pom.xml .
-RUN ./mvnw dependency:go-offline -B
+RUN mvn dependency:go-offline -B
 
-# Copiar el resto del proyecto
-COPY . .
+# Copiar el código fuente
+COPY src ./src
 
-# 🔧 Volvemos a dar permisos por si mvnw se sobrescribió
-RUN chmod +x mvnw
+# Construir la aplicación (sin correr tests)
+RUN mvn clean package -DskipTests
 
-# Compilar sin tests
-RUN ./mvnw clean package -DskipTests
+# ---- Etapa 2: imagen final ----
+FROM eclipse-temurin:17-jdk-alpine
+WORKDIR /app
 
-# Exponer el puerto (Render usa 10000)
+# Copiar el jar generado desde la etapa anterior
+COPY --from=builder /app/target/*.jar app.jar
+
+# Exponer el puerto (Render usa 10000 por defecto)
 EXPOSE 10000
 
-# Ejecutar la app
-ENTRYPOINT ["java", "-jar", "target/fitnorius-backend-0.0.1-SNAPSHOT.jar"]
+# Comando de ejecución
+ENTRYPOINT ["java", "-jar", "app.jar"]
