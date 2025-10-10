@@ -1,13 +1,10 @@
 services:
   - type: web
     name: fitnorius-backend
-    env: docker
+    env: java
     plan: free
-    branch: main
-    autoDeploy: true
-    dockerfilePath: ./Dockerfile
+    buildCommand: ./mvnw clean package -DskipTests
+    startCommand: java -jar target/*.jar --spring.profiles.active=render
     envVars:
       - key: SPRING_PROFILES_ACTIVE
-        value: prod
-      - key: PORT
         value: render

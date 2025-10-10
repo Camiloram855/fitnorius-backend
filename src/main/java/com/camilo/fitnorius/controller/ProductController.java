@@ -48,6 +48,13 @@ public class ProductController {
         return ResponseEntity.ok(productService.getProductsByCategory(categoryId));
     }
 
+    // 🟢 Buscar productos por nombre o descripción
+    // ✅ Soluciona el error "Failed to convert value of type 'String' to required type 'Long'"
+    @GetMapping("/search")
+    public ResponseEntity<List<ProductDTO>> searchProducts(@RequestParam String query) {
+        return ResponseEntity.ok(productService.searchProducts(query));
+    }
+
     // 🟢 Obtener un producto por ID
     @GetMapping("/{id}")
     public ResponseEntity<ProductDTO> getProductById(@PathVariable Long id) {
@@ -55,7 +62,6 @@ public class ProductController {
     }
 
     // ✅ ACTUALIZAR PRODUCTO con FormData (compatible con tu React)
-    // Ahora acepta multipart directamente en /api/products/{id}
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ProductDTO> updateProduct(
             @PathVariable Long id,
@@ -70,7 +76,7 @@ public class ProductController {
         }
     }
 
-    // (opcional) Si algún cliente usa JSON puro (sin imagen), también funciona:
+    // (opcional) Si algún cliente usa JSON puro (sin imagen)
     @PutMapping(value = "/{id}/json", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ProductDTO> updateProductJson(
             @PathVariable Long id,
