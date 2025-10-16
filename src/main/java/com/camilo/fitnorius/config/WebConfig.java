@@ -14,7 +14,7 @@ import java.nio.file.Paths;
 public class WebConfig implements WebMvcConfigurer {
 
     // 🌍 Permitir definir orígenes desde variable de entorno (para Render)
-    @Value("${cors.allowed.origins:http://localhost:5173,http://localhost:3000,https://fitnorius.vercel.app,https://fitnorius-4ju5x3nds-juan-ks-projects-b6132ea5.vercel.app}")
+    @Value("${cors.allowed.origins:http://localhost:5173,http://localhost:3000,https://fitnorius.vercel.app,https://fitnorius-my46wlpur-juan-ks-projects-b6132ea5.vercel.app}")
     private String allowedOrigins;
 
     // 🌍 Configuración global de CORS
