@@ -13,23 +13,17 @@ import java.nio.file.Paths;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    // 🌍 Permitir definir orígenes desde variable de entorno o usar los predeterminados
-    @Value("${cors.allowed.origins:http://localhost:5173,http://localhost:3000,"
-            + "https://fitnorius-gym.vercel.app,"
-            + "https://fitnorius-gym-git-main-juan-ks-projects-b6132ea5.vercel.app,"
-            + "https://fitnorius-aghr9tnpz-juan-ks-projects-b6132ea5.vercel.app,"
-            + "https://fitnorius-n6hbsoj6m-juan-ks-projects-b6132ea5.vercel.app}")
+    // 🌍 Permitir varios orígenes, incluyendo los de Vercel
+    @Value("${cors.allowed.origins:http://localhost:5173,http://localhost:3000,https://fitnorius.vercel.app,https://fitnorius-gym.vercel.app,https://fitnorius-gym-git-main-juan-ks-projects-b6132ea5.vercel.app,https://fitnorius-aghr9tnpz-juan-ks-projects-b6132ea5.vercel.app}")
     private String allowedOrigins;
 
-    // 🌍 Configuración global de CORS
     @Bean
     public WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
-                // Convertir la cadena de orígenes en array
                 String[] origins = allowedOrigins.split(",");
-                System.out.println("✅ Allowed origins: " + allowedOrigins);
+                System.out.println("✅ Allowed origins: " + allowedOrigins); // Para confirmar en logs
 
                 registry.addMapping("/**")
                         .allowedOrigins(origins)
@@ -40,19 +34,15 @@ public class WebConfig implements WebMvcConfigurer {
         };
     }
 
-    // 🖼️ Configuración de acceso a imágenes estáticas
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // 📁 Carpeta principal de imágenes de productos
         Path productUploadDir = Paths.get(System.getProperty("user.dir"), "uploads", "products");
         String productUploadPath = productUploadDir.toFile().getAbsolutePath();
 
-        // ✅ Servir imágenes de productos
         registry.addResourceHandler("/uploads/products/**")
                 .addResourceLocations("file:" + productUploadPath + "/")
                 .setCachePeriod(3600);
 
-        // ⚙️ Servir cualquier archivo dentro de /uploads
         Path uploadBaseDir = Paths.get("uploads");
         String uploadBasePath = uploadBaseDir.toFile().getAbsolutePath();
 
