@@ -29,6 +29,7 @@ public class WebConfig implements WebMvcConfigurer {
             public void addCorsMappings(CorsRegistry registry) {
                 // Convertir la cadena de orígenes en array
                 String[] origins = allowedOrigins.split(",");
+                System.out.println("✅ Allowed origins: " + allowedOrigins);
 
                 registry.addMapping("/**")
                         .allowedOrigins(origins)
