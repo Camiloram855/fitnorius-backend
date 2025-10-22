@@ -10,7 +10,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/productos")
-@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:5173" , "https://fitnorius.vercel.app"})
+@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:5173" , "https://fitnorius-j29wbx8rj-juan-ks-projects-b6132ea5.vercel.app"})
 public class ProductoController {
 
     private final ProductoRepository productoRepository;

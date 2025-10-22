@@ -12,7 +12,7 @@ import java.nio.file.Paths;
 
 @RestController
 @RequestMapping("/uploads")
-@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:5173", "https://fitnorius.vercel.app"})
+@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:5173" , "https://fitnorius-j29wbx8rj-juan-ks-projects-b6132ea5.vercel.app"})
 public class FileController {
 
     // ✅ Endpoint para devolver imágenes de productos o categorías
