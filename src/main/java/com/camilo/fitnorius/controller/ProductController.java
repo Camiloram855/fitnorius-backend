@@ -16,7 +16,9 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/products")
 @RequiredArgsConstructor
-@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:5173" , "https://fitnorius-j29wbx8rj-juan-ks-projects-b6132ea5.vercel.app"})
+@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:5173" , "https://fitnorius-gym.vercel.app",
+        "https://fitnorius-gym-git-main-juan-ks-projects-b6132ea5.vercel.app",
+        "https://fitnorius-aghr9tnpz-juan-ks-projects-b6132ea5.vercel.app",})
 public class ProductController {
 
     private final ProductService productService;
