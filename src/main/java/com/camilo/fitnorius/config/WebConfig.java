@@ -13,8 +13,12 @@ import java.nio.file.Paths;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    // 🌍 Permitir definir orígenes desde variable de entorno (para Render)
-    @Value("${cors.allowed.origins:http://localhost:5173,http://localhost:3000,https://fitnorius.vercel.app,https://fitnorius-my46wlpur-juan-ks-projects-b6132ea5.vercel.app}")
+    // 🌍 Permitir definir orígenes desde variable de entorno o usar los predeterminados
+    @Value("${cors.allowed.origins:http://localhost:5173,http://localhost:3000,"
+            + "https://fitnorius-gym.vercel.app,"
+            + "https://fitnorius-gym-git-main-juan-ks-projects-b6132ea5.vercel.app,"
+            + "https://fitnorius-aghr9tnpz-juan-ks-projects-b6132ea5.vercel.app,"
+            + "https://fitnorius-n6hbsoj6m-juan-ks-projects-b6132ea5.vercel.app}")
     private String allowedOrigins;
 
     // 🌍 Configuración global de CORS
@@ -23,7 +27,7 @@ public class WebConfig implements WebMvcConfigurer {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
-                // Convertir la cadena de orígenes en array (Render la pasa separada por comas)
+                // Convertir la cadena de orígenes en array
                 String[] origins = allowedOrigins.split(",");
 
                 registry.addMapping("/**")
@@ -47,7 +51,7 @@ public class WebConfig implements WebMvcConfigurer {
                 .addResourceLocations("file:" + productUploadPath + "/")
                 .setCachePeriod(3600);
 
-        // ⚙️ (General) Servir cualquier archivo dentro de /uploads
+        // ⚙️ Servir cualquier archivo dentro de /uploads
         Path uploadBaseDir = Paths.get("uploads");
         String uploadBasePath = uploadBaseDir.toFile().getAbsolutePath();
 
