@@ -31,45 +31,41 @@ public class ProductService {
 
         Product product = Product.builder()
                 .name(request.getName())
-                .price(safeBigDecimal(request.getPrice()))
-                .oldPrice(safeBigDecimal(request.getOldPrice()))
-                .discount(safeBigDecimal(request.getDiscount()))
+                .price(toBigDecimal(request.getPrice()))
+                .oldPrice(toBigDecimal(request.getOldPrice()))
+                .discount(toBigDecimal(request.getDiscount()))
                 .description(request.getDescription())
                 .category(category)
                 .build();
 
-        // Guardar imagen si existe
         if (image != null && !image.isEmpty()) {
             try {
                 product.setImageUrl(saveImage(image));
             } catch (IOException e) {
-                e.printStackTrace(); // Log del error sin romper la app
+                e.printStackTrace();
             }
         }
 
         return mapToDTO(productRepository.save(product));
     }
 
-    // ✅ Actualizar producto existente
+    // ✅ Actualizar producto
     public ProductDTO updateProduct(Long id, ProductDTO request, MultipartFile image) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + id));
 
-        // Actualizar campos básicos
         product.setName(request.getName());
-        product.setPrice(safeBigDecimal(request.getPrice()));
-        product.setOldPrice(safeBigDecimal(request.getOldPrice()));
-        product.setDiscount(safeBigDecimal(request.getDiscount()));
+        product.setPrice(toBigDecimal(request.getPrice()));
+        product.setOldPrice(toBigDecimal(request.getOldPrice()));
+        product.setDiscount(toBigDecimal(request.getDiscount()));
         product.setDescription(request.getDescription());
 
-        // Actualizar categoría si es necesario
         if (request.getCategoryId() != null) {
             Category category = categoryRepository.findById(request.getCategoryId())
                     .orElseThrow(() -> new RuntimeException("Categoría no encontrada con ID: " + request.getCategoryId()));
             product.setCategory(category);
         }
 
-        // Si llega nueva imagen → reemplazar
         if (image != null && !image.isEmpty()) {
             try {
                 String newImageUrl = saveImage(image);
@@ -85,18 +81,12 @@ public class ProductService {
 
     // ✅ Listar todos
     public List<ProductDTO> getAllProducts() {
-        return productRepository.findAll()
-                .stream()
-                .map(this::mapToDTO)
-                .toList();
+        return productRepository.findAll().stream().map(this::mapToDTO).toList();
     }
 
     // ✅ Listar por categoría
     public List<ProductDTO> getProductsByCategory(Long categoryId) {
-        return productRepository.findByCategoryId(categoryId)
-                .stream()
-                .map(this::mapToDTO)
-                .toList();
+        return productRepository.findByCategoryId(categoryId).stream().map(this::mapToDTO).toList();
     }
 
     // ✅ Buscar por ID
@@ -106,12 +96,11 @@ public class ProductService {
         return mapToDTO(product);
     }
 
-    // ✅ Eliminar producto con borrado de imagen
+    // ✅ Eliminar
     public boolean deleteProduct(Long id) {
         Optional<Product> productOpt = productRepository.findById(id);
         if (productOpt.isPresent()) {
-            Product product = productOpt.get();
-            deleteOldImage(product.getImageUrl());
+            deleteOldImage(productOpt.get().getImageUrl());
             productRepository.deleteById(id);
             return true;
         }
@@ -131,29 +120,16 @@ public class ProductService {
                 .toList();
     }
 
-    // ✅ Nuevo filtro por rango de precios (útil para frontend)
-    public List<ProductDTO> filterByPriceRange(BigDecimal minPrice, BigDecimal maxPrice) {
-        return productRepository.findAll().stream()
-                .filter(p -> {
-                    BigDecimal price = p.getPrice() != null ? p.getPrice() : BigDecimal.ZERO;
-                    return price.compareTo(minPrice) >= 0 && price.compareTo(maxPrice) <= 0;
-                })
-                .map(this::mapToDTO)
-                .toList();
-    }
-
-    // ✅ Guardar imagen en disco y devolver una URL accesible públicamente
+    // ✅ Guardar imagen
     private String saveImage(MultipartFile image) throws IOException {
         Files.createDirectories(Paths.get(UPLOAD_DIR));
         String fileName = System.currentTimeMillis() + "_" + Paths.get(image.getOriginalFilename()).getFileName();
         Path filePath = Paths.get(UPLOAD_DIR, fileName.toString());
         Files.write(filePath, image.getBytes(), StandardOpenOption.CREATE);
-
-        // Devuelve una ruta web accesible desde el frontend
         return "/uploads/products/" + fileName;
     }
 
-    // ✅ Eliminar imagen vieja de forma segura
+    // ✅ Eliminar imagen vieja
     private void deleteOldImage(String imageUrl) {
         if (imageUrl != null && imageUrl.startsWith("/uploads/")) {
             Path oldImagePath = Paths.get(imageUrl.replaceFirst("^/", ""));
@@ -181,12 +157,12 @@ public class ProductService {
     }
 
     // ✅ Conversión segura de Double a BigDecimal
-    private BigDecimal safeBigDecimal(Double value) {
-        return value != null ? BigDecimal.valueOf(value) : BigDecimal.ZERO;
+    private BigDecimal toBigDecimal(Double value) {
+        return value != null ? BigDecimal.valueOf(value).setScale(2, BigDecimal.ROUND_HALF_UP) : BigDecimal.ZERO;
     }
 
-    // ✅ Conversión segura de BigDecimal a Double (para el DTO)
+    // ✅ Conversión segura de BigDecimal a Double
     private Double toDouble(BigDecimal value) {
-        return value != null ? value.doubleValue() : null;
+        return value != null ? value.setScale(2, BigDecimal.ROUND_HALF_UP).doubleValue() : null;
     }
 }
