@@ -42,33 +42,30 @@ public class ProductService {
             try {
                 product.setImageUrl(saveImage(image));
             } catch (IOException e) {
-                e.printStackTrace(); // logueamos el error pero no rompemos la app
+                e.printStackTrace();
             }
         }
 
         return mapToDTO(productRepository.save(product));
     }
 
-    // ✅ Actualizar producto existente
+    // ✅ Actualizar producto
     public ProductDTO updateProduct(Long id, ProductDTO request, MultipartFile image) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + id));
 
-        // Actualizar campos básicos
         product.setName(request.getName());
         product.setPrice(request.getPrice());
         product.setOldPrice(request.getOldPrice());
         product.setDiscount(request.getDiscount());
         product.setDescription(request.getDescription());
 
-        // Actualizar categoría si es necesario
         if (request.getCategoryId() != null) {
             Category category = categoryRepository.findById(request.getCategoryId())
                     .orElseThrow(() -> new RuntimeException("Categoría no encontrada con ID: " + request.getCategoryId()));
             product.setCategory(category);
         }
 
-        // Si llega nueva imagen → reemplazar
         if (image != null && !image.isEmpty()) {
             try {
                 String newImageUrl = saveImage(image);
@@ -105,7 +102,7 @@ public class ProductService {
         return mapToDTO(product);
     }
 
-    // ✅ Eliminar producto con borrado de imagen
+    // ✅ Eliminar producto
     public boolean deleteProduct(Long id) {
         Optional<Product> productOpt = productRepository.findById(id);
         if (productOpt.isPresent()) {
@@ -117,12 +114,11 @@ public class ProductService {
         return false;
     }
 
-    // ✅ Nuevo metodo: búsqueda por nombre o descripción (para tu SearchSection)
+    // ✅ Buscar por nombre o descripción
     public List<ProductDTO> searchProducts(String query) {
         if (query == null || query.trim().isEmpty()) {
-            return getAllProducts(); // devuelve todos si no hay query
+            return getAllProducts();
         }
-
         return productRepository
                 .findByNameContainingIgnoreCaseOrDescriptionContainingIgnoreCase(query, query)
                 .stream()
@@ -130,18 +126,16 @@ public class ProductService {
                 .toList();
     }
 
-    // ✅ Guardar imagen en disco y devolver una URL accesible públicamente
+    // ✅ Guardar imagen en carpeta
     private String saveImage(MultipartFile image) throws IOException {
         Files.createDirectories(Paths.get(UPLOAD_DIR));
         String fileName = System.currentTimeMillis() + "_" + Paths.get(image.getOriginalFilename()).getFileName();
         Path filePath = Paths.get(UPLOAD_DIR, fileName.toString());
         Files.write(filePath, image.getBytes(), StandardOpenOption.CREATE);
-
-        // Devuelve una ruta web accesible desde el frontend
         return "/uploads/products/" + fileName;
     }
 
-    // ✅ Eliminar imagen vieja de forma segura
+    // ✅ Eliminar imagen vieja
     private void deleteOldImage(String imageUrl) {
         if (imageUrl != null && imageUrl.startsWith("/uploads/")) {
             Path oldImagePath = Paths.get(imageUrl.replaceFirst("^/", ""));
@@ -153,7 +147,7 @@ public class ProductService {
         }
     }
 
-    // ✅ Mapper
+    // ✅ Convertir modelo → DTO
     private ProductDTO mapToDTO(Product product) {
         return ProductDTO.builder()
                 .id(product.getId())
