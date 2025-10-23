@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,14 +17,18 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/products")
 @RequiredArgsConstructor
-@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:5173" , "https://fitnorius-gym.vercel.app",
+@CrossOrigin(origins = {
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://fitnorius-gym.vercel.app",
         "https://fitnorius-gym-git-main-juan-ks-projects-b6132ea5.vercel.app",
-        "https://fitnorius-aghr9tnpz-juan-ks-projects-b6132ea5.vercel.app",})
+        "https://fitnorius-aghr9tnpz-juan-ks-projects-b6132ea5.vercel.app"
+})
 public class ProductController {
 
     private final ProductService productService;
 
-    // 🟢 Crear producto con multipart (JSON + Imagen en el mismo formData)
+    // 🟢 Crear producto con multipart (JSON + Imagen)
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ProductDTO> createProductMultipart(
             @RequestPart("product") ProductDTO request,
@@ -51,19 +56,18 @@ public class ProductController {
     }
 
     // 🟢 Buscar productos por nombre o descripción
-    // ✅ Soluciona el error "Failed to convert value of type 'String' to required type 'Long'"
     @GetMapping("/search")
     public ResponseEntity<List<ProductDTO>> searchProducts(@RequestParam String query) {
         return ResponseEntity.ok(productService.searchProducts(query));
     }
 
-    // 🟢 Obtener un producto por ID
+    // 🟢 Obtener producto por ID
     @GetMapping("/{id}")
     public ResponseEntity<ProductDTO> getProductById(@PathVariable Long id) {
         return ResponseEntity.ok(productService.getProductById(id));
     }
 
-    // ✅ ACTUALIZAR PRODUCTO con FormData (compatible con tu React)
+    // ✅ ACTUALIZAR PRODUCTO con FormData (compatible con React)
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ProductDTO> updateProduct(
             @PathVariable Long id,
@@ -78,7 +82,7 @@ public class ProductController {
         }
     }
 
-    // (opcional) Si algún cliente usa JSON puro (sin imagen)
+    // (Opcional) Actualizar producto solo con JSON
     @PutMapping(value = "/{id}/json", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ProductDTO> updateProductJson(
             @PathVariable Long id,
@@ -87,12 +91,12 @@ public class ProductController {
         return ResponseEntity.ok(productService.updateProduct(id, request, null));
     }
 
-    // 🗑️ Eliminar un producto
+    // 🗑️ Eliminar producto
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, String>> deleteProduct(@PathVariable Long id) {
         boolean deleted = productService.deleteProduct(id);
-
         Map<String, String> response = new HashMap<>();
+
         if (deleted) {
             response.put("message", "Producto eliminado correctamente");
             return ResponseEntity.ok(response);
@@ -100,5 +104,14 @@ public class ProductController {
             response.put("error", "Producto no encontrado");
             return ResponseEntity.status(404).body(response);
         }
+    }
+
+    // 💰 (Opcional futuro) Filtro por rango de precios — ideal para buscadores con sliders
+    @GetMapping("/filter-by-price")
+    public ResponseEntity<List<ProductDTO>> filterByPrice(
+            @RequestParam BigDecimal minPrice,
+            @RequestParam BigDecimal maxPrice
+    ) {
+        return ResponseEntity.ok(productService.filterByPriceRange(minPrice, maxPrice));
     }
 }

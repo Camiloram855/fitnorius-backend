@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.*;
 import java.util.List;
 import java.util.Optional;
@@ -30,9 +31,9 @@ public class ProductService {
 
         Product product = Product.builder()
                 .name(request.getName())
-                .price(request.getPrice())
-                .oldPrice(request.getOldPrice())
-                .discount(request.getDiscount())
+                .price(safeBigDecimal(request.getPrice()))
+                .oldPrice(safeBigDecimal(request.getOldPrice()))
+                .discount(safeBigDecimal(request.getDiscount()))
                 .description(request.getDescription())
                 .category(category)
                 .build();
@@ -42,7 +43,7 @@ public class ProductService {
             try {
                 product.setImageUrl(saveImage(image));
             } catch (IOException e) {
-                e.printStackTrace(); // logueamos el error pero no rompemos la app
+                e.printStackTrace(); // Log del error sin romper la app
             }
         }
 
@@ -56,9 +57,9 @@ public class ProductService {
 
         // Actualizar campos básicos
         product.setName(request.getName());
-        product.setPrice(request.getPrice());
-        product.setOldPrice(request.getOldPrice());
-        product.setDiscount(request.getDiscount());
+        product.setPrice(safeBigDecimal(request.getPrice()));
+        product.setOldPrice(safeBigDecimal(request.getOldPrice()));
+        product.setDiscount(safeBigDecimal(request.getDiscount()));
         product.setDescription(request.getDescription());
 
         // Actualizar categoría si es necesario
@@ -117,15 +118,26 @@ public class ProductService {
         return false;
     }
 
-    // ✅ Nuevo metodo: búsqueda por nombre o descripción (para tu SearchSection)
+    // ✅ Buscar por nombre o descripción
     public List<ProductDTO> searchProducts(String query) {
         if (query == null || query.trim().isEmpty()) {
-            return getAllProducts(); // devuelve todos si no hay query
+            return getAllProducts();
         }
 
         return productRepository
                 .findByNameContainingIgnoreCaseOrDescriptionContainingIgnoreCase(query, query)
                 .stream()
+                .map(this::mapToDTO)
+                .toList();
+    }
+
+    // ✅ Nuevo filtro por rango de precios (útil para frontend)
+    public List<ProductDTO> filterByPriceRange(BigDecimal minPrice, BigDecimal maxPrice) {
+        return productRepository.findAll().stream()
+                .filter(p -> {
+                    BigDecimal price = p.getPrice() != null ? p.getPrice() : BigDecimal.ZERO;
+                    return price.compareTo(minPrice) >= 0 && price.compareTo(maxPrice) <= 0;
+                })
                 .map(this::mapToDTO)
                 .toList();
     }
@@ -153,18 +165,28 @@ public class ProductService {
         }
     }
 
-    // ✅ Mapper
+    // ✅ Mapper a DTO
     private ProductDTO mapToDTO(Product product) {
         return ProductDTO.builder()
                 .id(product.getId())
                 .name(product.getName())
-                .price(product.getPrice())
-                .oldPrice(product.getOldPrice())
-                .discount(product.getDiscount())
+                .price(toDouble(product.getPrice()))
+                .oldPrice(toDouble(product.getOldPrice()))
+                .discount(toDouble(product.getDiscount()))
                 .description(product.getDescription())
                 .imageUrl(product.getImageUrl())
                 .categoryId(product.getCategory().getId())
                 .categoryName(product.getCategory().getName())
                 .build();
+    }
+
+    // ✅ Conversión segura de Double a BigDecimal
+    private BigDecimal safeBigDecimal(Double value) {
+        return value != null ? BigDecimal.valueOf(value) : BigDecimal.ZERO;
+    }
+
+    // ✅ Conversión segura de BigDecimal a Double (para el DTO)
+    private Double toDouble(BigDecimal value) {
+        return value != null ? value.doubleValue() : null;
     }
 }
