@@ -9,21 +9,15 @@ import java.util.List;
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
-    // 🔍 Buscar productos por categoría
+    // ✅ Buscar productos por categoría
     List<Product> findByCategoryId(Long categoryId);
 
-    // 🗑️ Eliminar todos los productos de una categoría
+    // ✅ Eliminar todos los productos por categoría
     void deleteByCategoryId(Long categoryId);
 
-    // 🔎 Buscar productos por nombre (para el buscador principal)
+    // ✅ Buscar productos por nombre (para el buscador)
     List<Product> findByNameContainingIgnoreCase(String name);
 
-    // 🧠 Buscar productos por nombre o descripción (ideal para buscadores más amplios)
+    // ✅ Buscar por nombre o descripción (opcional: más potente para buscadores)
     List<Product> findByNameContainingIgnoreCaseOrDescriptionContainingIgnoreCase(String name, String description);
-
-    // 💰 (Opcional) Buscar productos con un precio menor o igual a un valor
-    // List<Product> findByPriceLessThanEqual(BigDecimal price);
-
-    // 💰 (Opcional) Buscar productos en un rango de precios
-    // List<Product> findByPriceBetween(BigDecimal minPrice, BigDecimal maxPrice);
 }

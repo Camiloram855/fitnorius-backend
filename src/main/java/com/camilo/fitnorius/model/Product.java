@@ -3,16 +3,13 @@ package com.camilo.fitnorius.model;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
-import java.math.BigDecimal;
 
 @Entity
 @Table(name = "products")
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString
 public class Product {
 
     @Id
@@ -20,38 +17,18 @@ public class Product {
     private Long id;
 
     private String name;
+    private Double price;
+    private Double oldPrice;   // precio tachado (opcional)
+    private Double discount;   // descuento en %
+    private String imageUrl;   // ruta donde guardas la imagen
 
-    // 💰 Precio actual con precisión de hasta 15 dígitos, 2 decimales
-    @Column(precision = 15, scale = 2, nullable = false)
-    private BigDecimal price = BigDecimal.ZERO;
+    @Column(columnDefinition = "TEXT") // 👈 permite textos largos
+    private String description; // descripción del producto
 
-    // 💰 Precio anterior (opcional)
-    @Column(name = "old_price", precision = 15, scale = 2)
-    private BigDecimal oldPrice;
-
-    // 📉 Descuento (porcentaje, opcional)
-    @Column(precision = 5, scale = 2)
-    private BigDecimal discount;
-
-    // 🖼️ Imagen del producto (URL o ruta)
-    private String imageUrl;
-
-    // 📝 Descripción larga del producto
-    @Column(columnDefinition = "TEXT")
-    private String description;
-
-    // 🔗 Relación con la categoría
+    // Relación con Category
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     @ToString.Exclude
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Category category;
-
-    // ✅ Método para asegurar que los valores nulos no rompan la conversión
-    @PrePersist
-    @PreUpdate
-    private void prePersist() {
-        if (price == null) price = BigDecimal.ZERO;
-        if (discount == null) discount = BigDecimal.ZERO;
-    }
 }
