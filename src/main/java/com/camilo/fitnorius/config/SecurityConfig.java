@@ -9,6 +9,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 public class SecurityConfig {
@@ -20,11 +21,16 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
-                        // ✅ permite acceso total a tus endpoints
-                        .requestMatchers("/actuator/**", "/api/**", "/uploads/**", "/**").permitAll()
+                        // ✅ Permite acceso libre a tus endpoints públicos
+                        .requestMatchers(
+                                "/actuator/**",
+                                "/api/**",
+                                "/uploads/**",
+                                "/**"
+                        ).permitAll()
                         .anyRequest().permitAll()
                 )
-                // 🔧 permite iframes (H2-console u otros)
+                // 🔧 Permite iframes (para H2-console u otros)
                 .headers(headers -> headers.frameOptions(frame -> frame.disable()));
 
         return http.build();
@@ -35,23 +41,31 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // ✅ Dominios permitidos (usa solo los que de verdad necesitas)
-        configuration.setAllowedOrigins(Arrays.asList(
+        // ✅ Dominios permitidos (solo los que realmente usas)
+        configuration.setAllowedOrigins(List.of(
                 "http://localhost:5173",
                 "http://localhost:3000",
                 "https://fitnorius-gym.vercel.app",
                 "https://fitnorius-gym-git-main-juan-ks-projects-b6132ea5.vercel.app"
         ));
 
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Type"));
+        // ✅ Métodos HTTP permitidos
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+
+        // ✅ Cabeceras permitidas
+        configuration.setAllowedHeaders(List.of("*"));
+
+        // ✅ Cabeceras expuestas al cliente
+        configuration.setExposedHeaders(List.of("Authorization", "Content-Type"));
+
+        // ✅ Permitir envío de cookies o headers de autenticación
         configuration.setAllowCredentials(true);
 
-        // ⚙️ Aplica a todos los endpoints
+        // ✅ Aplica a todas las rutas
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
 
+        // 🧠 Log informativo (opcional)
         System.out.println("✅ CORS habilitado para: " + configuration.getAllowedOrigins());
         return source;
     }
