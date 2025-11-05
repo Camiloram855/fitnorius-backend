@@ -20,24 +20,21 @@ public class BannerController {
     @Autowired
     private BannerService bannerService;
 
+    @GetMapping
+    public ResponseEntity<Banner> getBanner() {
+        Banner banner = bannerService.getCurrentBanner();
+        return ResponseEntity.ok(banner);
+    }
+
     @PostMapping("/upload")
     public ResponseEntity<Banner> uploadBanner(@RequestParam("file") MultipartFile file) {
         Banner savedBanner = bannerService.saveBanner(file);
         return ResponseEntity.ok(savedBanner);
     }
 
-    @GetMapping
-    public ResponseEntity<Banner> getBanner() {
-        Banner banner = bannerService.getCurrentBanner();
-        if (banner == null) {
-            return ResponseEntity.noContent().build();
-        }
-        return ResponseEntity.ok(banner);
-    }
-
     @DeleteMapping("/reset")
     public ResponseEntity<String> resetBanner() {
         bannerService.resetBanner();
-        return ResponseEntity.ok("Banner eliminado");
+        return ResponseEntity.ok("Banner restablecido correctamente");
     }
 }
