@@ -3,7 +3,6 @@ package com.camilo.fitnorius.service;
 import com.camilo.fitnorius.dto.ProductDTO;
 import com.camilo.fitnorius.model.Category;
 import com.camilo.fitnorius.model.Product;
-import com.camilo.fitnorius.model.ProductImages;
 import com.camilo.fitnorius.repository.CategoryRepository;
 import com.camilo.fitnorius.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
@@ -12,10 +11,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.file.*;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -26,8 +23,8 @@ public class ProductService {
 
     private static final String UPLOAD_DIR = "uploads/products/";
 
-    // ✅ Crear producto con múltiples imágenes
-    public ProductDTO saveProduct(ProductDTO request, List<MultipartFile> images) {
+    // ✅ Crear producto
+    public ProductDTO saveProduct(ProductDTO request, MultipartFile image) {
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new RuntimeException("Categoría no encontrada con ID: " + request.getCategoryId()));
 
@@ -40,17 +37,20 @@ public class ProductService {
                 .category(category)
                 .build();
 
-        // Guardar imágenes si existen
-        if (images != null && !images.isEmpty()) {
-            List<ProductImages> productImages = saveProductImages(images, product);
-            product.setImages(productImages);
+        // Guardar imagen si existe
+        if (image != null && !image.isEmpty()) {
+            try {
+                product.setImageUrl(saveImage(image));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
         return mapToDTO(productRepository.save(product));
     }
 
-    // ✅ Actualizar producto (mantiene imágenes existentes, permite agregar nuevas)
-    public ProductDTO updateProduct(Long id, ProductDTO request, List<MultipartFile> newImages) {
+    // ✅ Actualizar producto
+    public ProductDTO updateProduct(Long id, ProductDTO request, MultipartFile image) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + id));
 
@@ -66,9 +66,14 @@ public class ProductService {
             product.setCategory(category);
         }
 
-        if (newImages != null && !newImages.isEmpty()) {
-            List<ProductImages> addedImages = saveProductImages(newImages, product);
-            product.getImages().addAll(addedImages);
+        if (image != null && !image.isEmpty()) {
+            try {
+                String newImageUrl = saveImage(image);
+                deleteOldImage(product.getImageUrl());
+                product.setImageUrl(newImageUrl);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
         return mapToDTO(productRepository.save(product));
@@ -97,12 +102,12 @@ public class ProductService {
         return mapToDTO(product);
     }
 
-    // ✅ Eliminar producto con imágenes
+    // ✅ Eliminar producto
     public boolean deleteProduct(Long id) {
         Optional<Product> productOpt = productRepository.findById(id);
         if (productOpt.isPresent()) {
             Product product = productOpt.get();
-            product.getImages().forEach(image -> deleteOldImage(image.getImageUrl()));
+            deleteOldImage(product.getImageUrl());
             productRepository.deleteById(id);
             return true;
         }
@@ -121,27 +126,13 @@ public class ProductService {
                 .toList();
     }
 
-    // ✅ Guardar múltiples imágenes asociadas al producto
-    private List<ProductImages> saveProductImages(List<MultipartFile> images, Product product) {
-        List<ProductImages> productImages = new ArrayList<>();
-        try {
-            Files.createDirectories(Paths.get(UPLOAD_DIR));
-            for (MultipartFile image : images) {
-                String fileName = System.currentTimeMillis() + "_" + Paths.get(image.getOriginalFilename()).getFileName();
-                Path filePath = Paths.get(UPLOAD_DIR, fileName.toString());
-                Files.write(filePath, image.getBytes(), StandardOpenOption.CREATE);
-
-                ProductImages productImage = ProductImages.builder()
-                        .product(product)
-                        .imageUrl("/uploads/products/" + fileName)
-                        .build();
-
-                productImages.add(productImage);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return productImages;
+    // ✅ Guardar imagen en carpeta
+    private String saveImage(MultipartFile image) throws IOException {
+        Files.createDirectories(Paths.get(UPLOAD_DIR));
+        String fileName = System.currentTimeMillis() + "_" + Paths.get(image.getOriginalFilename()).getFileName();
+        Path filePath = Paths.get(UPLOAD_DIR, fileName.toString());
+        Files.write(filePath, image.getBytes(), StandardOpenOption.CREATE);
+        return "/uploads/products/" + fileName;
     }
 
     // ✅ Eliminar imagen vieja
@@ -165,10 +156,7 @@ public class ProductService {
                 .oldPrice(product.getOldPrice())
                 .discount(product.getDiscount())
                 .description(product.getDescription())
-                .imageUrls(product.getImages()
-                        .stream()
-                        .map(ProductImages::getImageUrl)
-                        .collect(Collectors.toList()))
+                .imageUrl(product.getImageUrl())
                 .categoryId(product.getCategory().getId())
                 .categoryName(product.getCategory().getName())
                 .build();

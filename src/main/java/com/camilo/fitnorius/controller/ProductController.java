@@ -27,61 +27,62 @@ public class ProductController {
 
     private final ProductService productService;
 
-    // ✅ Crear producto con multipart (JSON + 1 o más imágenes)
+    // 🟢 Crear producto con multipart (JSON + Imagen)
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ProductDTO> createProductMultipart(
             @RequestPart("product") ProductDTO request,
-            @RequestPart(value = "images", required = false) List<MultipartFile> images
+            @RequestPart(value = "image", required = false) MultipartFile image
     ) throws IOException {
-        return ResponseEntity.ok(productService.saveProduct(request, images));
+        // ✅ ProductDTO ya soporta BigDecimal automáticamente
+        return ResponseEntity.ok(productService.saveProduct(request, image));
     }
 
-    // ✅ Crear producto solo con JSON
+    // 🟢 Crear producto solo con JSON
     @PostMapping(value = "/json", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ProductDTO> createProductJson(@RequestBody ProductDTO productDTO) {
         return ResponseEntity.ok(productService.saveProduct(productDTO, null));
     }
 
-    // ✅ Listar todos los productos
+    // 🟢 Listar todos los productos
     @GetMapping
     public ResponseEntity<List<ProductDTO>> getAllProducts() {
         return ResponseEntity.ok(productService.getAllProducts());
     }
 
-    // ✅ Listar productos por categoría
+    // 🟢 Listar productos por categoría
     @GetMapping("/category/{categoryId}")
     public ResponseEntity<List<ProductDTO>> getProductsByCategory(@PathVariable Long categoryId) {
         return ResponseEntity.ok(productService.getProductsByCategory(categoryId));
     }
 
-    // ✅ Buscar productos por nombre o descripción
+    // 🟢 Buscar productos por nombre o descripción
     @GetMapping("/search")
     public ResponseEntity<List<ProductDTO>> searchProducts(@RequestParam String query) {
         return ResponseEntity.ok(productService.searchProducts(query));
     }
 
-    // ✅ Obtener un producto por ID
+    // 🟢 Obtener un producto por ID
     @GetMapping("/{id}")
     public ResponseEntity<ProductDTO> getProductById(@PathVariable Long id) {
         return ResponseEntity.ok(productService.getProductById(id));
     }
 
-    // ✅ Actualizar producto con form-data y múltiples imágenes
+    // 🟢 Actualizar producto con FormData
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ProductDTO> updateProduct(
             @PathVariable Long id,
             @RequestPart("product") ProductDTO request,
-            @RequestPart(value = "images", required = false) List<MultipartFile> images
+            @RequestPart(value = "image", required = false) MultipartFile image
     ) {
         try {
-            return ResponseEntity.ok(productService.updateProduct(id, request, images));
+            return ResponseEntity.ok(productService.updateProduct(id, request, image));
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError().build();
         }
     }
 
-    // ✅ Actualizar producto solo con JSON
+    // 🟢 Actualizar producto solo con JSON
     @PutMapping(value = "/{id}/json", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ProductDTO> updateProductJson(
             @PathVariable Long id,
@@ -90,7 +91,7 @@ public class ProductController {
         return ResponseEntity.ok(productService.updateProduct(id, request, null));
     }
 
-    // ✅ Eliminar producto
+    // 🗑️ Eliminar producto
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, String>> deleteProduct(@PathVariable Long id) {
         boolean deleted = productService.deleteProduct(id);
