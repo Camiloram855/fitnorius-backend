@@ -2,6 +2,7 @@ package com.camilo.fitnorius.dto;
 
 import lombok.*;
 import java.math.BigDecimal;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -17,7 +18,9 @@ public class ProductDTO {
     private BigDecimal oldPrice;
     private BigDecimal discount;
 
-    private String imageUrl;
+    // 📸 Ahora una lista de URLs de imágenes
+    private List<String> imageUrls;
+
     private Long categoryId;
     private String categoryName;
 
