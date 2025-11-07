@@ -27,13 +27,12 @@ public class ProductController {
 
     private final ProductService productService;
 
-    // 🟢 Crear producto con multipart (JSON + Imagen)
+    // 🟢 Crear producto con multipart (JSON + Imagen principal)
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ProductDTO> createProductMultipart(
             @RequestPart("product") ProductDTO request,
             @RequestPart(value = "image", required = false) MultipartFile image
     ) throws IOException {
-        // ✅ ProductDTO ya soporta BigDecimal automáticamente
         return ResponseEntity.ok(productService.saveProduct(request, image));
     }
 
@@ -61,28 +60,32 @@ public class ProductController {
         return ResponseEntity.ok(productService.searchProducts(query));
     }
 
-    // 🟢 Obtener un producto por ID
+    // 🟢 Obtener un producto por ID (incluye sus imágenes miniatura)
     @GetMapping("/{id}")
     public ResponseEntity<ProductDTO> getProductById(@PathVariable Long id) {
         return ResponseEntity.ok(productService.getProductById(id));
     }
 
-    // 🟢 Actualizar producto con FormData
+    // 🟢 Actualizar producto con FormData (ahora admite imágenes miniatura)
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ProductDTO> updateProduct(
             @PathVariable Long id,
             @RequestPart("product") ProductDTO request,
-            @RequestPart(value = "image", required = false) MultipartFile image
+            @RequestPart(value = "image", required = false) MultipartFile image, // Imagen principal
+            @RequestPart(value = "newImages", required = false) List<MultipartFile> newImages, // Miniaturas nuevas
+            @RequestPart(value = "deleteImages", required = false) String deleteImagesJson // Miniaturas a eliminar (JSON)
     ) {
         try {
-            return ResponseEntity.ok(productService.updateProduct(id, request, image));
+            return ResponseEntity.ok(
+                    productService.updateProductWithImages(id, request, image, newImages, deleteImagesJson)
+            );
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError().build();
         }
     }
 
-    // 🟢 Actualizar producto solo con JSON
+    // 🟢 Actualizar producto solo con JSON (sin imágenes)
     @PutMapping(value = "/{id}/json", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ProductDTO> updateProductJson(
             @PathVariable Long id,

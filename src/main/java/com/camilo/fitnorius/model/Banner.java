@@ -3,7 +3,7 @@ package com.camilo.fitnorius.model;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "banner") // 👈 tabla oficial, sin 's'
+@Table(name = "banner") //  tabla oficial
 public class Banner {
 
     @Id

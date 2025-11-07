@@ -12,12 +12,17 @@ public class ProductDTO {
     private Long id;
     private String name;
 
-    // 💰 Usamos BigDecimal para evitar errores de redondeo con decimales
+    // 💰 Evita errores de redondeo en valores decimales
     private BigDecimal price;
     private BigDecimal oldPrice;
     private BigDecimal discount;
 
+    // 📸 Ruta del archivo en el servidor
     private String imageUrl;
+
+    // 🧬 Imagen codificada (opcional, si se guarda o muestra directamente desde BD)
+    private String imageData;
+
     private Long categoryId;
     private String categoryName;
 
