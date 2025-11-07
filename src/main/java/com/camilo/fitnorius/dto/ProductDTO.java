@@ -2,6 +2,7 @@ package com.camilo.fitnorius.dto;
 
 import lombok.*;
 import java.math.BigDecimal;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -12,20 +13,18 @@ public class ProductDTO {
     private Long id;
     private String name;
 
-    // 💰 Evita errores de redondeo en valores decimales
+    // 💰 Evita errores de redondeo
     private BigDecimal price;
     private BigDecimal oldPrice;
     private BigDecimal discount;
 
-    // 📸 Ruta del archivo en el servidor
     private String imageUrl;
-
-    // 🧬 Imagen codificada (opcional, si se guarda o muestra directamente desde BD)
-    private String imageData;
-
     private Long categoryId;
     private String categoryName;
 
-    // 📝 Descripción opcional del producto
+    // 📝 Descripción del producto
     private String description;
+
+    // 🖼️ NUEVO: lista de imágenes miniatura
+    private List<String> images;
 }
