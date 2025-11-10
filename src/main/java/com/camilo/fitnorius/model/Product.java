@@ -48,4 +48,5 @@ public class Product {
     @JsonIgnoreProperties("product")
     private List<ProductImage> images = new ArrayList<>();
 
+
 }

@@ -3,19 +3,17 @@ package com.camilo.fitnorius.service;
 import com.camilo.fitnorius.dto.ProductDTO;
 import com.camilo.fitnorius.model.Category;
 import com.camilo.fitnorius.model.Product;
+import com.camilo.fitnorius.model.ProductImage;
 import com.camilo.fitnorius.repository.CategoryRepository;
 import com.camilo.fitnorius.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.camilo.fitnorius.model.ProductImage;
-import java.util.Objects;
-
-
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 @Service
@@ -27,7 +25,7 @@ public class ProductService {
 
     private static final String UPLOAD_DIR = "uploads/products/";
 
-    // ✅ Crear producto
+    // ✅ Crear producto con múltiples imágenes
     public ProductDTO saveProduct(ProductDTO request, List<MultipartFile> images) {
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new RuntimeException("Categoría no encontrada con ID: " + request.getCategoryId()));
@@ -43,15 +41,21 @@ public class ProductService {
 
         // Guardar imágenes si existen
         if (images != null && !images.isEmpty()) {
-            List<ProductImage> productImages = images.stream().map(file -> {
-                try {
-                    String url = saveImage(file);
-                    return ProductImage.builder().url(url).product(product).build();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    return null;
-                }
-            }).filter(Objects::nonNull).toList();
+            List<ProductImage> productImages = images.stream()
+                    .map(file -> {
+                        try {
+                            String url = saveImage(file);
+                            return ProductImage.builder()
+                                    .url(url)
+                                    .product(product)
+                                    .build();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                            return null;
+                        }
+                    })
+                    .filter(Objects::nonNull)
+                    .toList();
 
             product.setImages(productImages);
         }
@@ -59,9 +63,8 @@ public class ProductService {
         return mapToDTO(productRepository.save(product));
     }
 
-
-    // ✅ Actualizar producto
-    public ProductDTO updateProduct(Long id, ProductDTO request, MultipartFile image) {
+    // ✅ Actualizar producto (ahora soporta múltiples imágenes)
+    public ProductDTO updateProduct(Long id, ProductDTO request, List<MultipartFile> images) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + id));
 
@@ -77,20 +80,34 @@ public class ProductService {
             product.setCategory(category);
         }
 
-        if (image != null && !image.isEmpty()) {
-            try {
-                String newImageUrl = saveImage(image);
-                deleteOldImage(product.getImageUrl());
-                product.setImageUrl(newImageUrl);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+        // 🔁 Reemplazar imágenes si se envían nuevas
+        if (images != null && !images.isEmpty()) {
+            deleteOldImages(product); // Borra las anteriores
+
+            List<ProductImage> newImages = images.stream()
+                    .map(file -> {
+                        try {
+                            String url = saveImage(file);
+                            return ProductImage.builder()
+                                    .url(url)
+                                    .product(product)
+                                    .build();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                            return null;
+                        }
+                    })
+                    .filter(Objects::nonNull)
+                    .toList();
+
+            product.getImages().clear();
+            product.getImages().addAll(newImages);
         }
 
         return mapToDTO(productRepository.save(product));
     }
 
-    // ✅ Listar todos
+    // ✅ Listar todos los productos
     public List<ProductDTO> getAllProducts() {
         return productRepository.findAll()
                 .stream()
@@ -98,7 +115,7 @@ public class ProductService {
                 .toList();
     }
 
-    // ✅ Listar por categoría
+    // ✅ Listar productos por categoría
     public List<ProductDTO> getProductsByCategory(Long categoryId) {
         return productRepository.findByCategoryId(categoryId)
                 .stream()
@@ -106,26 +123,26 @@ public class ProductService {
                 .toList();
     }
 
-    // ✅ Buscar por ID
+    // ✅ Buscar producto por ID
     public ProductDTO getProductById(Long id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + id));
         return mapToDTO(product);
     }
 
-    // ✅ Eliminar producto
+    // ✅ Eliminar producto y sus imágenes
     public boolean deleteProduct(Long id) {
         Optional<Product> productOpt = productRepository.findById(id);
         if (productOpt.isPresent()) {
             Product product = productOpt.get();
-            deleteOldImage(product.getImageUrl());
+            deleteOldImages(product);
             productRepository.deleteById(id);
             return true;
         }
         return false;
     }
 
-    // ✅ Buscar por nombre o descripción
+    // ✅ Buscar productos por nombre o descripción
     public List<ProductDTO> searchProducts(String query) {
         if (query == null || query.trim().isEmpty()) {
             return getAllProducts();
@@ -137,24 +154,29 @@ public class ProductService {
                 .toList();
     }
 
-    // ✅ Guardar imagen en carpeta
+    // ✅ Guardar imagen en carpeta local
     private String saveImage(MultipartFile image) throws IOException {
         Files.createDirectories(Paths.get(UPLOAD_DIR));
         String fileName = System.currentTimeMillis() + "_" + Paths.get(image.getOriginalFilename()).getFileName();
         Path filePath = Paths.get(UPLOAD_DIR, fileName.toString());
-        Files.write(filePath, image.getBytes(), StandardOpenOption.CREATE);
+        Files.write(filePath, image.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
         return "/uploads/products/" + fileName;
     }
 
-    // ✅ Eliminar imagen vieja
-    private void deleteOldImage(String imageUrl) {
-        if (imageUrl != null && imageUrl.startsWith("/uploads/")) {
-            Path oldImagePath = Paths.get(imageUrl.replaceFirst("^/", ""));
-            try {
-                Files.deleteIfExists(oldImagePath);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+    // ✅ Eliminar todas las imágenes asociadas al producto
+    private void deleteOldImages(Product product) {
+        if (product.getImages() != null && !product.getImages().isEmpty()) {
+            product.getImages().forEach(img -> {
+                if (img.getUrl() != null && img.getUrl().startsWith("/uploads/")) {
+                    Path oldImagePath = Paths.get(img.getUrl().replaceFirst("^/", ""));
+                    try {
+                        Files.deleteIfExists(oldImagePath);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
+            product.getImages().clear();
         }
     }
 
@@ -176,6 +198,4 @@ public class ProductService {
                 .categoryName(product.getCategory().getName())
                 .build();
     }
-
-
 }
