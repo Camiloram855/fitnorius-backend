@@ -27,13 +27,14 @@ public class ProductController {
 
     private final ProductService productService;
 
-    // 🟢 Crear producto con multipart (JSON + Imágenes)
+    // 🟢 Crear producto con multipart (JSON + Imagen)
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ProductDTO> createProductMultipart(
             @RequestPart("product") ProductDTO request,
-            @RequestPart(value = "images", required = false) List<MultipartFile> images
+            @RequestPart(value = "image", required = false) MultipartFile image
     ) throws IOException {
-        return ResponseEntity.ok(productService.saveProduct(request, images));
+        // ✅ ProductDTO ya soporta BigDecimal automáticamente
+        return ResponseEntity.ok(productService.saveProduct(request, image));
     }
 
     // 🟢 Crear producto solo con JSON
@@ -66,7 +67,7 @@ public class ProductController {
         return ResponseEntity.ok(productService.getProductById(id));
     }
 
-    // 🟢 Actualizar producto con FormData (acepta una o varias imágenes)
+    // 🟢 Actualizar producto con FormData
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ProductDTO> updateProduct(
             @PathVariable Long id,
@@ -74,8 +75,7 @@ public class ProductController {
             @RequestPart(value = "image", required = false) MultipartFile image
     ) {
         try {
-            List<MultipartFile> imageList = (image != null) ? List.of(image) : null;
-            return ResponseEntity.ok(productService.updateProduct(id, request, imageList));
+            return ResponseEntity.ok(productService.updateProduct(id, request, image));
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError().build();
