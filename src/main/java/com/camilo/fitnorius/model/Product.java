@@ -1,9 +1,12 @@
 package com.camilo.fitnorius.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "products")
@@ -29,7 +32,7 @@ public class Product {
     @Column(precision = 5, scale = 2)
     private BigDecimal discount;   // descuento en %
 
-    private String imageUrl;   // ruta donde guardas la imagen
+    private String imageUrl;   // ruta donde guardas la imagen principal
 
     @Column(columnDefinition = "TEXT")
     private String description; // descripción del producto
@@ -40,4 +43,9 @@ public class Product {
     @ToString.Exclude
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Category category;
+
+    // 🧩 Relación con las imágenes miniatura
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
+    private List<Image> images = new ArrayList<>();
 }

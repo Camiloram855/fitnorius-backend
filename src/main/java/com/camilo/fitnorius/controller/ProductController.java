@@ -31,10 +31,17 @@ public class ProductController {
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ProductDTO> createProductMultipart(
             @RequestPart("product") ProductDTO request,
-            @RequestPart(value = "image", required = false) MultipartFile image
+            @RequestPart(value = "image", required = false) MultipartFile image,  // principal
+            @RequestPart(value = "miniatures", required = false) List<MultipartFile> miniatures // miniaturas
     ) throws IOException {
-        // ✅ ProductDTO ya soporta BigDecimal automáticamente
-        return ResponseEntity.ok(productService.saveProduct(request, image));
+        ProductDTO saved = productService.saveProduct(request, image);
+
+        // Guarda las miniaturas (si existen)
+        if (miniatures != null && !miniatures.isEmpty()) {
+            productService.saveAdditionalImages(saved.getId(), miniatures);
+        }
+
+        return ResponseEntity.ok(saved);
     }
 
     // 🟢 Crear producto solo con JSON
