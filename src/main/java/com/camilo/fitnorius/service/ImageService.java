@@ -77,37 +77,36 @@ public class ImageService {
 
     @Transactional
     public boolean deleteImage(Long id) {
-        Image img = imageRepository.findById(id).orElse(null);
+        System.out.println("🗑️ Intentando eliminar imagen con ID: " + id);
 
-        if (img == null) {
-            System.err.println("⚠️ Imagen no encontrada con ID: " + id);
-            return false;
-        }
+        return imageRepository.findById(id).map(img -> {
+            try {
+                // Archivo físico
+                String filename = new File(img.getUrl()).getName();
+                Path filePath = Paths.get(System.getProperty("user.dir"), uploadDir, filename);
+                File file = filePath.toFile();
 
-        try {
-            // 🧩 Nombre del archivo
-            String filename = new File(img.getUrl()).getName();
-            Path filePath = Paths.get(System.getProperty("user.dir"), uploadDir, filename);
-            File file = filePath.toFile();
+                if (file.exists() && file.delete()) {
+                    System.out.println("✅ Archivo físico eliminado: " + file.getAbsolutePath());
+                } else {
+                    System.out.println("⚠️ Archivo físico no encontrado o ya eliminado: " + file.getAbsolutePath());
+                }
 
-            // 🧹 Eliminar archivo físico
-            if (file.exists() && file.delete()) {
-                System.out.println("🗑️ Archivo físico eliminado: " + file.getAbsolutePath());
-            } else {
-                System.err.println("⚠️ Archivo no encontrado: " + file.getAbsolutePath());
+                // Registro en base de datos
+                imageRepository.delete(img);
+                imageRepository.flush();
+
+                System.out.println("✅ Registro eliminado de la base de datos (ID: " + id + ")");
+                return true;
+            } catch (Exception e) {
+                System.err.println("❌ Error eliminando imagen ID " + id + ": " + e.getMessage());
+                e.printStackTrace();
+                throw new RuntimeException("Error eliminando imagen con ID: " + id, e);
             }
-
-            // 💾 Eliminar registro de la base
-            imageRepository.delete(img);
-            imageRepository.flush(); // ✅ Forzar commit inmediato
-
-            System.out.println("✅ Registro eliminado de la base de datos (ID: " + id + ")");
-            return true;
-
-        } catch (Exception e) {
-            System.err.println("❌ Error eliminando imagen ID " + id + ": " + e.getMessage());
-            e.printStackTrace();
-            throw new RuntimeException("Error eliminando imagen con ID: " + id, e);
-        }
+        }).orElseGet(() -> {
+            System.err.println("⚠️ Imagen no encontrada en BD con ID: " + id);
+            return false;
+        });
     }
+
 }
