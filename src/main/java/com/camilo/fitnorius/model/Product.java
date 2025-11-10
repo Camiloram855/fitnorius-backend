@@ -45,6 +45,7 @@ public class Product {
     private Category category;
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnoreProperties("product")
     private List<ProductImage> images = new ArrayList<>();
 
 }

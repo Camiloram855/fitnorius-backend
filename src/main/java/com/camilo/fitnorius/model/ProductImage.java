@@ -1,5 +1,6 @@
 package com.camilo.fitnorius.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -20,5 +21,6 @@ public class ProductImage {
     // 🔗 Varias imágenes pertenecen a un producto
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id")
+    @JsonIgnoreProperties({"images", "category"})
     private Product product;
 }
