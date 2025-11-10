@@ -23,7 +23,7 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
-    private final ImageService imageService; // ✅ conexión con el servicio de imágenes
+    private final ImageService imageService;
 
     private static final String UPLOAD_DIR = "uploads/products/";
 
@@ -130,11 +130,34 @@ public class ProductService {
         Optional<Product> productOpt = productRepository.findById(id);
         if (productOpt.isPresent()) {
             Product product = productOpt.get();
+
+            // ❌ Eliminar imagen principal
             deleteOldImage(product.getImageUrl());
+
+            // ❌ Eliminar imágenes miniatura
+            List<Image> images = imageService.findByProductId(product.getId());
+            images.forEach(img -> imageService.deleteImage(img.getId()));
+
             productRepository.deleteById(id);
             return true;
         }
         return false;
+    }
+
+    // ✅ Eliminar todos los productos e imágenes de una categoría
+    public void deleteProductsByCategory(Long categoryId) {
+        List<Product> products = productRepository.findByCategoryId(categoryId);
+
+        for (Product product : products) {
+            // 🔥 Eliminar imagen principal
+            deleteOldImage(product.getImageUrl());
+
+            // 🔥 Eliminar imágenes miniatura
+            List<Image> images = imageService.findByProductId(product.getId());
+            images.forEach(img -> imageService.deleteImage(img.getId()));
+
+            productRepository.delete(product);
+        }
     }
 
     // ✅ Buscar por nombre o descripción
@@ -183,7 +206,7 @@ public class ProductService {
                 .imageUrl(product.getImageUrl())
                 .categoryId(product.getCategory().getId())
                 .categoryName(product.getCategory().getName())
-                .images(images) // ✅ miniaturas incluidas en el DTO
+                .images(images)
                 .build();
     }
 }
