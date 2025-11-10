@@ -9,6 +9,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.camilo.fitnorius.model.ProductImage;
+import java.util.Objects;
+
+
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.List;
@@ -24,7 +28,7 @@ public class ProductService {
     private static final String UPLOAD_DIR = "uploads/products/";
 
     // ✅ Crear producto
-    public ProductDTO saveProduct(ProductDTO request, MultipartFile image) {
+    public ProductDTO saveProduct(ProductDTO request, List<MultipartFile> images) {
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new RuntimeException("Categoría no encontrada con ID: " + request.getCategoryId()));
 
@@ -37,17 +41,24 @@ public class ProductService {
                 .category(category)
                 .build();
 
-        // Guardar imagen si existe
-        if (image != null && !image.isEmpty()) {
-            try {
-                product.setImageUrl(saveImage(image));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+        // Guardar imágenes si existen
+        if (images != null && !images.isEmpty()) {
+            List<ProductImage> productImages = images.stream().map(file -> {
+                try {
+                    String url = saveImage(file);
+                    return ProductImage.builder().url(url).product(product).build();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    return null;
+                }
+            }).filter(Objects::nonNull).toList();
+
+            product.setImages(productImages);
         }
 
         return mapToDTO(productRepository.save(product));
     }
+
 
     // ✅ Actualizar producto
     public ProductDTO updateProduct(Long id, ProductDTO request, MultipartFile image) {
@@ -156,9 +167,15 @@ public class ProductService {
                 .oldPrice(product.getOldPrice())
                 .discount(product.getDiscount())
                 .description(product.getDescription())
-                .imageUrl(product.getImageUrl())
+                .imageUrls(
+                        product.getImages() != null
+                                ? product.getImages().stream().map(ProductImage::getUrl).toList()
+                                : List.of()
+                )
                 .categoryId(product.getCategory().getId())
                 .categoryName(product.getCategory().getName())
                 .build();
     }
+
+
 }
