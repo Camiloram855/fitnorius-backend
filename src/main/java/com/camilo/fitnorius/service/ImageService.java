@@ -4,6 +4,7 @@ import com.camilo.fitnorius.model.Image;
 import com.camilo.fitnorius.model.Product;
 import com.camilo.fitnorius.repository.ImageRepository;
 import com.camilo.fitnorius.repository.ProductRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -63,39 +64,38 @@ public class ImageService {
         }).toList();
     }
 
-    // ✅ Ahora devuelve booleano y elimina archivo + registro
+    // ✅ Solución: transaccional y con confirmación
+    @Transactional
     public boolean deleteImage(Long id) {
-        Image img = imageRepository.findById(id)
-                .orElse(null);
-
+        Image img = imageRepository.findById(id).orElse(null);
         if (img == null) {
             System.err.println("⚠️ Imagen no encontrada con ID: " + id);
             return false;
         }
 
         try {
-            // 📁 Obtener nombre de archivo
+            // 🧩 Nombre de archivo
             String filename = new File(img.getUrl()).getName();
             Path filePath = Paths.get(System.getProperty("user.dir"), uploadDir, filename);
             File file = filePath.toFile();
 
-            // 🧹 Eliminar archivo físico si existe
+            // 🧹 Eliminar archivo físico
             if (file.exists() && file.delete()) {
-                System.out.println("🗑️ Archivo eliminado: " + file.getAbsolutePath());
+                System.out.println("🗑️ Archivo físico eliminado: " + file.getAbsolutePath());
             } else {
-                System.err.println("⚠️ No se encontró el archivo o no se pudo eliminar: " + file.getAbsolutePath());
+                System.err.println("⚠️ Archivo físico no encontrado: " + file.getAbsolutePath());
             }
 
-            // 🧹 Eliminar registro de la base de datos
-            imageRepository.delete(img);
-            System.out.println("✅ Registro de imagen eliminado de la base de datos (ID: " + id + ")");
+            // 💾 Eliminar registro en base de datos (dentro de transacción)
+            imageRepository.deleteById(id);
+            System.out.println("✅ Registro eliminado de la base de datos (ID: " + id + ")");
 
             return true;
 
         } catch (Exception e) {
             System.err.println("❌ Error eliminando imagen ID " + id + ": " + e.getMessage());
             e.printStackTrace();
-            return false;
+            throw new RuntimeException("Error eliminando imagen con ID: " + id, e);
         }
     }
 }
