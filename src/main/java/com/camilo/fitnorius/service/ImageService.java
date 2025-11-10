@@ -14,6 +14,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -31,19 +32,24 @@ public class ImageService {
         return imageRepository.findByProductId(productId);
     }
 
+    @Transactional
     public List<Image> saveImages(List<MultipartFile> files, Long productId) {
-        final Product product = (productId != null)
-                ? productRepository.findById(productId).orElse(null)
-                : null;
+        Product product = null;
+
+        if (productId != null) {
+            product = productRepository.findById(productId).orElse(null);
+        }
 
         Path basePath = Paths.get(System.getProperty("user.dir"), uploadDir);
         File folder = basePath.toFile();
 
         if (!folder.exists() && !folder.mkdirs()) {
-            throw new RuntimeException("❌ No se pudo crear la carpeta de subida: " + folder.getAbsolutePath());
+            throw new RuntimeException("❌ No se pudo crear la carpeta: " + folder.getAbsolutePath());
         }
 
-        return files.stream().map(file -> {
+        List<Image> savedImages = new ArrayList<>();
+
+        for (MultipartFile file : files) {
             try {
                 String filename = UUID.randomUUID() + "_" + file.getOriginalFilename();
                 File destination = new File(folder, filename);
@@ -56,25 +62,30 @@ public class ImageService {
                         .product(product)
                         .build();
 
-                return imageRepository.save(image);
+                Image saved = imageRepository.saveAndFlush(image); // ✅ Fuerza persistencia inmediata
+                savedImages.add(saved);
+
+                System.out.println("📸 Guardada imagen " + fileUrl + " (ID: " + saved.getId() + ")");
 
             } catch (IOException e) {
                 throw new RuntimeException("❌ Error guardando archivo: " + file.getOriginalFilename(), e);
             }
-        }).toList();
+        }
+
+        return savedImages;
     }
 
-    // ✅ Solución: transaccional y con confirmación
     @Transactional
     public boolean deleteImage(Long id) {
         Image img = imageRepository.findById(id).orElse(null);
+
         if (img == null) {
             System.err.println("⚠️ Imagen no encontrada con ID: " + id);
             return false;
         }
 
         try {
-            // 🧩 Nombre de archivo
+            // 🧩 Nombre del archivo
             String filename = new File(img.getUrl()).getName();
             Path filePath = Paths.get(System.getProperty("user.dir"), uploadDir, filename);
             File file = filePath.toFile();
@@ -83,13 +94,14 @@ public class ImageService {
             if (file.exists() && file.delete()) {
                 System.out.println("🗑️ Archivo físico eliminado: " + file.getAbsolutePath());
             } else {
-                System.err.println("⚠️ Archivo físico no encontrado: " + file.getAbsolutePath());
+                System.err.println("⚠️ Archivo no encontrado: " + file.getAbsolutePath());
             }
 
-            // 💾 Eliminar registro en base de datos (dentro de transacción)
-            imageRepository.deleteById(id);
-            System.out.println("✅ Registro eliminado de la base de datos (ID: " + id + ")");
+            // 💾 Eliminar registro de la base
+            imageRepository.delete(img);
+            imageRepository.flush(); // ✅ Forzar commit inmediato
 
+            System.out.println("✅ Registro eliminado de la base de datos (ID: " + id + ")");
             return true;
 
         } catch (Exception e) {
