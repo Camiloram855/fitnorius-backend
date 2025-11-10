@@ -1,9 +1,7 @@
 package com.camilo.fitnorius.controller;
 
 import com.camilo.fitnorius.dto.ProductDTO;
-import com.camilo.fitnorius.model.ProductImagen;
 import com.camilo.fitnorius.service.ProductService;
-import com.camilo.fitnorius.service.ProductImagenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -28,14 +26,14 @@ import java.util.Map;
 public class ProductController {
 
     private final ProductService productService;
-    private final ProductImagenService productImagenService; // 🟢 Nuevo servicio para manejar las imágenes extra
 
-    // 🟢 Crear producto con multipart (JSON + Imagen principal)
+    // 🟢 Crear producto con multipart (JSON + Imagen)
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ProductDTO> createProductMultipart(
             @RequestPart("product") ProductDTO request,
             @RequestPart(value = "image", required = false) MultipartFile image
     ) throws IOException {
+        // ✅ ProductDTO ya soporta BigDecimal automáticamente
         return ResponseEntity.ok(productService.saveProduct(request, image));
     }
 
@@ -74,15 +72,34 @@ public class ProductController {
     public ResponseEntity<ProductDTO> updateProduct(
             @PathVariable Long id,
             @RequestPart("product") ProductDTO request,
-            @RequestPart(value = "image", required = false) MultipartFile image
+            @RequestPart(value = "image", required = false) MultipartFile image,
+            @RequestPart(value = "newImages", required = false) List<MultipartFile> newImages,
+            @RequestPart(value = "deleteImages", required = false) String deleteImagesJson
     ) {
         try {
-            return ResponseEntity.ok(productService.updateProduct(id, request, image));
+            // ✅ Actualizar datos principales (nombre, precios, descripción, etc.)
+            ProductDTO updatedProduct = productService.updateProduct(id, request, image);
+
+            // ✅ Guardar miniaturas adicionales (independientes)
+            if (newImages != null && !newImages.isEmpty()) {
+                productService.saveAdditionalImages(id, newImages);
+            }
+
+            // ✅ Eliminar miniaturas seleccionadas
+            if (deleteImagesJson != null && !deleteImagesJson.isBlank()) {
+                productService.deleteImagesFromJson(deleteImagesJson);
+            }
+
+            // ✅ Refrescar y devolver el producto con sus imágenes actualizadas
+            ProductDTO refreshed = productService.getProductById(id);
+            return ResponseEntity.ok(refreshed);
+
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError().build();
         }
     }
+
 
     // 🟢 Actualizar producto solo con JSON
     @PutMapping(value = "/{id}/json", consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -104,37 +121,6 @@ public class ProductController {
             return ResponseEntity.ok(response);
         } else {
             response.put("error", "Producto no encontrado");
-            return ResponseEntity.status(404).body(response);
-        }
-    }
-
-    // 🔵 SUBIR imágenes adicionales (galería del producto)
-    @PostMapping(value = "/{productId}/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<List<ProductImagen>> uploadProductImages(
-            @PathVariable Long productId,
-            @RequestPart("images") List<MultipartFile> images
-    ) throws IOException {
-        List<ProductImagen> savedImages = productImagenService.saveImages(productId, images);
-        return ResponseEntity.ok(savedImages);
-    }
-
-    // 🔵 OBTENER imágenes asociadas a un producto
-    @GetMapping("/{productId}/images")
-    public ResponseEntity<List<ProductImagen>> getProductImages(@PathVariable Long productId) {
-        return ResponseEntity.ok(productImagenService.getImagesByProduct(productId));
-    }
-
-    // 🔵 ELIMINAR una imagen específica
-    @DeleteMapping("/images/{imageId}")
-    public ResponseEntity<Map<String, String>> deleteProductImage(@PathVariable Long imageId) {
-        boolean deleted = productImagenService.deleteImage(imageId);
-
-        Map<String, String> response = new HashMap<>();
-        if (deleted) {
-            response.put("message", "Imagen eliminada correctamente");
-            return ResponseEntity.ok(response);
-        } else {
-            response.put("error", "Imagen no encontrada");
             return ResponseEntity.status(404).body(response);
         }
     }

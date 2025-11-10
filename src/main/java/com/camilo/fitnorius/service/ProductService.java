@@ -3,9 +3,11 @@ package com.camilo.fitnorius.service;
 import com.camilo.fitnorius.dto.ProductDTO;
 import com.camilo.fitnorius.model.Category;
 import com.camilo.fitnorius.model.Product;
-import com.camilo.fitnorius.model.ProductImagen;
+import com.camilo.fitnorius.model.Image;
 import com.camilo.fitnorius.repository.CategoryRepository;
 import com.camilo.fitnorius.repository.ProductRepository;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -21,7 +23,7 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
-    private final ProductImagenService productImagenService; // 👈 integración nueva
+    private final ImageService imageService; // ✅ conexión con el servicio de imágenes
 
     private static final String UPLOAD_DIR = "uploads/products/";
 
@@ -48,13 +50,8 @@ public class ProductService {
             }
         }
 
-        Product saved = productRepository.save(product);
-
-        // ⚡ Guardar miniaturas si vienen en la solicitud (sin bucles)
-        // Solo se llama si las imágenes extra vienen desde el ProductImagenController.
-        // Aquí no se hace loop ni referencia circular.
-
-        return mapToDTO(saved);
+        Product savedProduct = productRepository.save(product);
+        return mapToDTO(savedProduct);
     }
 
     // ✅ Actualizar producto
@@ -74,6 +71,7 @@ public class ProductService {
             product.setCategory(category);
         }
 
+        // ✅ Reemplazar imagen principal
         if (image != null && !image.isEmpty()) {
             try {
                 String newImageUrl = saveImage(image);
@@ -84,7 +82,24 @@ public class ProductService {
             }
         }
 
-        return mapToDTO(productRepository.save(product));
+        Product updatedProduct = productRepository.save(product);
+        return mapToDTO(updatedProduct);
+    }
+
+    // ✅ Guardar imágenes adicionales (miniaturas independientes)
+    public void saveAdditionalImages(Long productId, List<MultipartFile> files) {
+        imageService.saveImages(files, productId);
+    }
+
+    // ✅ Eliminar imágenes adicionales (desde JSON con IDs)
+    public void deleteImagesFromJson(String deleteImagesJson) {
+        try {
+            List<Long> idsToDelete = new ObjectMapper()
+                    .readValue(deleteImagesJson, new TypeReference<List<Long>>() {});
+            idsToDelete.forEach(imageService::deleteImage);
+        } catch (IOException e) {
+            throw new RuntimeException("Error procesando deleteImages JSON", e);
+        }
     }
 
     // ✅ Listar todos
@@ -115,13 +130,7 @@ public class ProductService {
         Optional<Product> productOpt = productRepository.findById(id);
         if (productOpt.isPresent()) {
             Product product = productOpt.get();
-
-            // 🧩 Eliminar imágenes asociadas (sin recursión)
-            productImagenService.deleteAllByProduct(product.getId());
-
-            // 🖼️ Eliminar imagen principal
             deleteOldImage(product.getImageUrl());
-
             productRepository.deleteById(id);
             return true;
         }
@@ -163,11 +172,7 @@ public class ProductService {
 
     // ✅ Convertir modelo → DTO
     private ProductDTO mapToDTO(Product product) {
-        List<String> imageUrls = product.getImages() // suponiendo que Product tiene List<ProductImagen> images
-                .stream()
-                .map(ProductImagen::getImageUrl)
-                .toList();
-
+        List<Image> images = imageService.findByProductId(product.getId());
         return ProductDTO.builder()
                 .id(product.getId())
                 .name(product.getName())
@@ -175,11 +180,10 @@ public class ProductService {
                 .oldPrice(product.getOldPrice())
                 .discount(product.getDiscount())
                 .description(product.getDescription())
-                .imageUrl(product.getImageUrl()) // Imagen principal
-                .imageUrls(imageUrls) // Todas las imágenes
+                .imageUrl(product.getImageUrl())
                 .categoryId(product.getCategory().getId())
                 .categoryName(product.getCategory().getName())
+                .images(images) // ✅ miniaturas incluidas en el DTO
                 .build();
     }
-
 }
