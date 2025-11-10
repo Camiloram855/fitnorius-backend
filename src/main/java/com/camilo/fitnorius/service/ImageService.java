@@ -38,11 +38,8 @@ public class ImageService {
         Path basePath = Paths.get(System.getProperty("user.dir"), uploadDir);
         File folder = basePath.toFile();
 
-        if (!folder.exists()) {
-            boolean created = folder.mkdirs();
-            if (!created) {
-                throw new RuntimeException("❌ No se pudo crear la carpeta de subida: " + folder.getAbsolutePath());
-            }
+        if (!folder.exists() && !folder.mkdirs()) {
+            throw new RuntimeException("❌ No se pudo crear la carpeta de subida: " + folder.getAbsolutePath());
         }
 
         return files.stream().map(file -> {
@@ -66,12 +63,10 @@ public class ImageService {
         }).toList();
     }
 
-    /**
-     * ✅ Elimina una imagen del sistema de archivos y de la base de datos.
-     * Devuelve true si fue eliminada correctamente, false si no existía.
-     */
+    // ✅ Ahora devuelve booleano y elimina archivo + registro
     public boolean deleteImage(Long id) {
-        Image img = imageRepository.findById(id).orElse(null);
+        Image img = imageRepository.findById(id)
+                .orElse(null);
 
         if (img == null) {
             System.err.println("⚠️ Imagen no encontrada con ID: " + id);
@@ -79,27 +74,22 @@ public class ImageService {
         }
 
         try {
-            // 🧩 Obtener nombre del archivo desde la URL
+            // 📁 Obtener nombre de archivo
             String filename = new File(img.getUrl()).getName();
+            Path filePath = Paths.get(System.getProperty("user.dir"), uploadDir, filename);
+            File file = filePath.toFile();
 
-            // 📂 Ruta completa
-            Path basePath = Paths.get(System.getProperty("user.dir"), uploadDir);
-            File file = new File(basePath.toFile(), filename);
-
-            // 🧹 Intentar borrar archivo físico
-            if (file.exists()) {
-                if (file.delete()) {
-                    System.out.println("🗑️ Archivo eliminado: " + file.getAbsolutePath());
-                } else {
-                    System.err.println("⚠️ No se pudo eliminar el archivo físico: " + file.getAbsolutePath());
-                }
+            // 🧹 Eliminar archivo físico si existe
+            if (file.exists() && file.delete()) {
+                System.out.println("🗑️ Archivo eliminado: " + file.getAbsolutePath());
             } else {
-                System.err.println("⚠️ Archivo no encontrado en el sistema: " + file.getAbsolutePath());
+                System.err.println("⚠️ No se encontró el archivo o no se pudo eliminar: " + file.getAbsolutePath());
             }
 
             // 🧹 Eliminar registro de la base de datos
             imageRepository.delete(img);
-            System.out.println("✅ Imagen eliminada correctamente (ID: " + id + ")");
+            System.out.println("✅ Registro de imagen eliminado de la base de datos (ID: " + id + ")");
+
             return true;
 
         } catch (Exception e) {
