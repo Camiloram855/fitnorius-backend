@@ -173,26 +173,13 @@ public class ProductService {
     }
 
     // ✅ Guardar imagen en carpeta
-// ✅ Guardar imagen en carpeta (funciona en Railway y local)
     private String saveImage(MultipartFile image) throws IOException {
-        // 📁 Ruta absoluta basada en el mismo directorio que WebConfig
-        Path uploadDir = Paths.get(System.getProperty("user.dir"), "uploads", "products");
-        Files.createDirectories(uploadDir);
-
-        // 🧾 Nombre único
+        Files.createDirectories(Paths.get(UPLOAD_DIR));
         String fileName = System.currentTimeMillis() + "_" + Paths.get(image.getOriginalFilename()).getFileName();
-
-        // 📸 Ruta completa del archivo físico
-        Path filePath = uploadDir.resolve(fileName);
-
-        // 💾 Guardar archivo
+        Path filePath = Paths.get(UPLOAD_DIR, fileName.toString());
         Files.write(filePath, image.getBytes(), StandardOpenOption.CREATE);
-
-        // 🌍 URL pública (ajustada al dominio del backend)
-        String baseUrl = "https://fitnorius-production.up.railway.app";
-        return baseUrl + "/uploads/products/" + fileName;
+        return "/uploads/products/" + fileName;
     }
-
 
     // ✅ Eliminar imagen vieja
     private void deleteOldImage(String imageUrl) {
