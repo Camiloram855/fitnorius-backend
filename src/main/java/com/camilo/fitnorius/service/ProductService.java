@@ -178,34 +178,30 @@ public class ProductService {
         String fileName = System.currentTimeMillis() + "_" + Paths.get(image.getOriginalFilename()).getFileName();
         Path filePath = Paths.get(UPLOAD_DIR, fileName.toString());
         Files.write(filePath, image.getBytes(), StandardOpenOption.CREATE);
-        return "/uploads/products/" + fileName;
+        String baseUrl = "https://fitnorius-production.up.railway.app";
+        return baseUrl + "/uploads/products/" + fileName;
     }
+
 
     // ✅ Eliminar imagen vieja
     private void deleteOldImage(String imageUrl) {
-        if (imageUrl != null && imageUrl.startsWith("/uploads/")) {
-            Path oldImagePath = Paths.get(imageUrl.replaceFirst("^/", ""));
-            try {
-                Files.deleteIfExists(oldImagePath);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+        if (imageUrl == null || imageUrl.isEmpty()) return;
+
+        try {
+            // ✅ Extrae solo el nombre del archivo
+            String fileName = Paths.get(imageUrl).getFileName().toString();
+
+            Path imagePath = Paths.get(UPLOAD_DIR, fileName);
+            Files.deleteIfExists(imagePath);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
+
 
     // ✅ Convertir modelo → DTO
     private ProductDTO mapToDTO(Product product) {
         List<Image> images = imageService.findByProductId(product.getId());
-
-        // 🌐 Detecta el host del backend
-        String baseUrl = "https://fitnorius-production.up.railway.app"; // o tu dominio real o localhost:8080
-
-        // Si el imageUrl no es null y no empieza con "http", concatena el dominio
-        String fullImageUrl = product.getImageUrl();
-        if (fullImageUrl != null && !fullImageUrl.startsWith("http")) {
-            fullImageUrl = baseUrl + fullImageUrl;
-        }
-
         return ProductDTO.builder()
                 .id(product.getId())
                 .name(product.getName())
@@ -213,11 +209,10 @@ public class ProductService {
                 .oldPrice(product.getOldPrice())
                 .discount(product.getDiscount())
                 .description(product.getDescription())
-                .imageUrl(fullImageUrl)
+                .imageUrl(product.getImageUrl())
                 .categoryId(product.getCategory().getId())
                 .categoryName(product.getCategory().getName())
                 .images(images)
                 .build();
     }
-
 }
