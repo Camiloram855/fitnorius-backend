@@ -178,26 +178,20 @@ public class ProductService {
         String fileName = System.currentTimeMillis() + "_" + Paths.get(image.getOriginalFilename()).getFileName();
         Path filePath = Paths.get(UPLOAD_DIR, fileName.toString());
         Files.write(filePath, image.getBytes(), StandardOpenOption.CREATE);
-        String baseUrl = "https://fitnorius-production.up.railway.app";
-        return baseUrl + "/uploads/products/" + fileName;
+        return "/uploads/products/" + fileName;
     }
-
 
     // ✅ Eliminar imagen vieja
     private void deleteOldImage(String imageUrl) {
-        if (imageUrl == null || imageUrl.isEmpty()) return;
-
-        try {
-            // ✅ Extrae solo el nombre del archivo
-            String fileName = Paths.get(imageUrl).getFileName().toString();
-
-            Path imagePath = Paths.get(UPLOAD_DIR, fileName);
-            Files.deleteIfExists(imagePath);
-        } catch (IOException e) {
-            e.printStackTrace();
+        if (imageUrl != null && imageUrl.startsWith("/uploads/")) {
+            Path oldImagePath = Paths.get(imageUrl.replaceFirst("^/", ""));
+            try {
+                Files.deleteIfExists(oldImagePath);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
-
 
     // ✅ Convertir modelo → DTO
     private ProductDTO mapToDTO(Product product) {
