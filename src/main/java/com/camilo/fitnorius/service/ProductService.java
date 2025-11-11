@@ -196,6 +196,16 @@ public class ProductService {
     // ✅ Convertir modelo → DTO
     private ProductDTO mapToDTO(Product product) {
         List<Image> images = imageService.findByProductId(product.getId());
+
+        // 🌐 Detecta el host del backend
+        String baseUrl = "https://fitnorius-production.up.railway.app"; // o tu dominio real o localhost:8080
+
+        // Si el imageUrl no es null y no empieza con "http", concatena el dominio
+        String fullImageUrl = product.getImageUrl();
+        if (fullImageUrl != null && !fullImageUrl.startsWith("http")) {
+            fullImageUrl = baseUrl + fullImageUrl;
+        }
+
         return ProductDTO.builder()
                 .id(product.getId())
                 .name(product.getName())
@@ -203,10 +213,11 @@ public class ProductService {
                 .oldPrice(product.getOldPrice())
                 .discount(product.getDiscount())
                 .description(product.getDescription())
-                .imageUrl(product.getImageUrl())
+                .imageUrl(fullImageUrl)
                 .categoryId(product.getCategory().getId())
                 .categoryName(product.getCategory().getName())
                 .images(images)
                 .build();
     }
+
 }
