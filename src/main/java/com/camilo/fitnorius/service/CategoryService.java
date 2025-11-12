@@ -5,7 +5,7 @@ import com.camilo.fitnorius.repository.CategoryRepository;
 import com.camilo.fitnorius.repository.ProductRepository;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -16,28 +16,12 @@ import java.util.Map;
 import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
     private final Cloudinary cloudinary;
-
-    // 🔧 Constructor con configuración de Cloudinary
-    public CategoryService(
-            CategoryRepository categoryRepository,
-            ProductRepository productRepository,
-            @Value("${cloudinary.cloud_name}") String cloudName,
-            @Value("${cloudinary.api_key}") String apiKey,
-            @Value("${cloudinary.api_secret}") String apiSecret
-    ) {
-        this.categoryRepository = categoryRepository;
-        this.productRepository = productRepository;
-        this.cloudinary = new Cloudinary(ObjectUtils.asMap(
-                "cloud_name", cloudName,
-                "api_key", apiKey,
-                "api_secret", apiSecret
-        ));
-    }
 
     /**
      * 📦 Obtener todas las categorías
@@ -47,29 +31,36 @@ public class CategoryService {
     }
 
     /**
-     * 🆕 Crear una nueva categoría con imagen subida a Cloudinary
+     * 🆕 Crear categoría con subida a Cloudinary
      */
     public Category createCategory(String name, MultipartFile imageFile) throws IOException {
         Category category = new Category();
         category.setName(name);
 
         if (imageFile != null && !imageFile.isEmpty()) {
-            Map uploadResult = cloudinary.uploader().upload(imageFile.getBytes(), ObjectUtils.asMap(
-                    "folder", "fitnorius/categories/"
-            ));
-
-            // ✅ Guardar secure_url y public_id correctamente
-            category.setCloudinaryData(
-                    uploadResult.get("secure_url").toString(),
-                    uploadResult.get("public_id").toString()
+            Map uploadResult = cloudinary.uploader().upload(
+                    imageFile.getBytes(),
+                    ObjectUtils.asMap(
+                            "folder", "fitnorius/categories",
+                            "resource_type", "image"
+                    )
             );
+
+            System.out.println("📸 Resultado Cloudinary (Category): " + uploadResult);
+
+            // ✅ Extraer datos de Cloudinary
+            String secureUrl = (String) uploadResult.get("secure_url");
+            String publicId = (String) uploadResult.get("public_id");
+
+            // ✅ Asignar en la entidad
+            category.setCloudinaryData(secureUrl, publicId);
         }
 
         return categoryRepository.save(category);
     }
 
     /**
-     * 🔄 Actualiza nombre e imagen (si se envía una nueva)
+     * 🔄 Actualizar categoría (nombre e imagen)
      */
     @Transactional
     public Category updateCategory(Long id, String name, MultipartFile imageFile) throws IOException {
@@ -78,25 +69,30 @@ public class CategoryService {
 
         category.setName(name);
 
-        // 🖼️ Si llega nueva imagen, eliminar la anterior de Cloudinary
         if (imageFile != null && !imageFile.isEmpty()) {
             deleteCategoryImage(category);
 
-            Map uploadResult = cloudinary.uploader().upload(imageFile.getBytes(), ObjectUtils.asMap(
-                    "folder", "fitnorius/categories/"
-            ));
-
-            category.setCloudinaryData(
-                    uploadResult.get("secure_url").toString(),
-                    uploadResult.get("public_id").toString()
+            Map uploadResult = cloudinary.uploader().upload(
+                    imageFile.getBytes(),
+                    ObjectUtils.asMap(
+                            "folder", "fitnorius/categories",
+                            "resource_type", "image"
+                    )
             );
+
+            System.out.println("📸 Resultado Cloudinary (Update): " + uploadResult);
+
+            String secureUrl = (String) uploadResult.get("secure_url");
+            String publicId = (String) uploadResult.get("public_id");
+
+            category.setCloudinaryData(secureUrl, publicId);
         }
 
         return categoryRepository.save(category);
     }
 
     /**
-     * ❌ Eliminar categoría solo si no tiene productos asociados
+     * ❌ Eliminar categoría
      */
     @Transactional
     public boolean deleteCategory(Long id) {
@@ -115,7 +111,7 @@ public class CategoryService {
     }
 
     /**
-     * 🧹 Eliminar categoría junto con sus productos
+     * 🧹 Eliminar categoría junto con productos
      */
     @Transactional
     public boolean deleteCategoryWithProducts(Long id) {
@@ -130,7 +126,7 @@ public class CategoryService {
     }
 
     /**
-     * 🗑️ Eliminar imagen de Cloudinary si existe
+     * 🗑️ Eliminar imagen de Cloudinary
      */
     private void deleteCategoryImage(Category category) {
         try {
