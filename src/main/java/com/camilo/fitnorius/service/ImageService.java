@@ -101,6 +101,13 @@ public class ImageService {
         return savedImages;
     }
 
+    // ✅ Versión auxiliar (compatibilidad con controladores antiguos)
+    // 🔹 Permite subir imágenes solo con productId, sin categoría
+    @Transactional
+    public List<Image> saveImages(List<MultipartFile> files, Long productId) {
+        return saveImages(files, productId, null);
+    }
+
     // ✅ Eliminar imagen tanto en Cloudinary como en BD
     @Transactional
     public boolean deleteImage(Long id) {

@@ -8,8 +8,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "categories")
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -22,24 +21,16 @@ public class Category {
     @Column(nullable = false, unique = true, length = 100)
     private String name;
 
-    // 🖼️ URL de imagen subida a Cloudinary
-    @Column(name = "image_url", length = 500)
+    // 🌩️ URL de la imagen almacenada en Cloudinary
+    @Column(length = 500)
     private String imageUrl;
 
-    // 🧩 Relación con productos
+    // 🆔 ID público en Cloudinary (para eliminar/actualizar)
+    @Column(name = "cloudinary_public_id", length = 255)
+    private String cloudinaryPublicId;
+
+    // 🔗 Relación con productos
     @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonIgnore // evita recursión infinita al devolver categorías
-    @Builder.Default
-    private List<Product> productList = new ArrayList<>();
-
-    // ✅ Método auxiliar para mantener sincronía bidireccional
-    public void addProduct(Product product) {
-        productList.add(product);
-        product.setCategory(this);
-    }
-
-    public void removeProduct(Product product) {
-        productList.remove(product);
-        product.setCategory(null);
-    }
+    @JsonIgnore
+    private List<Product> products = new ArrayList<>();
 }
