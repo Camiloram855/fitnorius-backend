@@ -1,8 +1,8 @@
 package com.camilo.fitnorius.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 @Table(name = "images")
@@ -17,14 +17,21 @@ public class Image {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String url; // Ej: /uploads/imagen1.jpg
+    @Column(nullable = false, length = 500)
+    private String url; // URL de Cloudinary o ruta local
 
-    // 🔗 Relación con el producto
+    @Column(name = "public_id", length = 255)
+    private String publicId; // ID público de Cloudinary
+
+    // 🔗 Relación opcional con Producto
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id", nullable = false)
+    @JoinColumn(name = "product_id", nullable = true)
     @JsonIgnore
     private Product product;
 
-    @Column(name = "public_id")
-    private String publicId;
+    // 🔗 Relación opcional con Categoría
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id", nullable = true)
+    @JsonIgnore
+    private Category category;
 }

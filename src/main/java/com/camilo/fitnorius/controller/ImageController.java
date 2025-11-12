@@ -18,7 +18,7 @@ public class ImageController {
     private final ImageService imageService;
 
     // 🔹 Obtener imágenes por producto
-    @GetMapping
+    @GetMapping("/product")
     public ResponseEntity<List<Image>> getByProduct(@RequestParam Long productId) {
         try {
             List<Image> images = imageService.findByProductId(productId);
@@ -30,18 +30,40 @@ public class ImageController {
         }
     }
 
-    // 🔹 Subir imágenes adicionales
+    // 🔹 Obtener imágenes por categoría
+    @GetMapping("/category")
+    public ResponseEntity<List<Image>> getByCategory(@RequestParam Long categoryId) {
+        try {
+            List<Image> images = imageService.findByCategoryId(categoryId);
+            return ResponseEntity.ok(images);
+        } catch (Exception e) {
+            System.err.println("❌ Error obteniendo imágenes de la categoría ID " + categoryId + ": " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    // 🔹 Subir imágenes (producto o categoría)
     @PostMapping("/upload")
     public ResponseEntity<List<Image>> uploadImages(
             @RequestParam("files") List<MultipartFile> files,
-            @RequestParam(value = "productId", required = false) Long productId
+            @RequestParam(value = "productId", required = false) Long productId,
+            @RequestParam(value = "categoryId", required = false) Long categoryId
     ) {
         try {
-            List<Image> savedImages = imageService.saveImages(files, productId);
-            System.out.println("✅ Imágenes subidas correctamente para producto ID: " + productId);
+            List<Image> savedImages = imageService.saveImages(files, productId, categoryId);
+
+            String target = (productId != null)
+                    ? "producto ID: " + productId
+                    : (categoryId != null)
+                    ? "categoría ID: " + categoryId
+                    : "sin destino especificado";
+
+            System.out.println("✅ Imágenes subidas correctamente para " + target);
             return ResponseEntity.ok(savedImages);
+
         } catch (Exception e) {
-            System.err.println("❌ Error subiendo imágenes para producto ID " + productId + ": " + e.getMessage());
+            System.err.println("❌ Error subiendo imágenes: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.internalServerError().build();
         }

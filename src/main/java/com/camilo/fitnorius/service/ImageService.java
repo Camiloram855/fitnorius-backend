@@ -1,9 +1,11 @@
 package com.camilo.fitnorius.service;
 
+import com.camilo.fitnorius.model.Category;
 import com.camilo.fitnorius.model.Image;
 import com.camilo.fitnorius.model.Product;
 import com.camilo.fitnorius.repository.ImageRepository;
 import com.camilo.fitnorius.repository.ProductRepository;
+import com.camilo.fitnorius.repository.CategoryRepository;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import jakarta.transaction.Transactional;
@@ -23,8 +25,9 @@ public class ImageService {
 
     private final ImageRepository imageRepository;
     private final ProductRepository productRepository;
+    private final CategoryRepository categoryRepository;
 
-    // 🔹 Variables de configuración de Cloudinary
+    // 🔹 Configuración de Cloudinary
     @Value("${cloudinary.cloud_name}")
     private String cloudName;
 
@@ -39,14 +42,25 @@ public class ImageService {
         return imageRepository.findByProductId(productId);
     }
 
-    // ✅ Subir imágenes miniatura de producto a Cloudinary
+    // ✅ Buscar imágenes por categoría
+    public List<Image> findByCategoryId(Long categoryId) {
+        return imageRepository.findByCategoryId(categoryId);
+    }
+
+    // ✅ Subir imágenes a Cloudinary (de producto o categoría)
     @Transactional
-    public List<Image> saveImages(List<MultipartFile> files, Long productId) {
+    public List<Image> saveImages(List<MultipartFile> files, Long productId, Long categoryId) {
         Product product = null;
+        Category category = null;
 
         if (productId != null) {
             product = productRepository.findById(productId)
                     .orElseThrow(() -> new RuntimeException("❌ Producto no encontrado con ID: " + productId));
+        }
+
+        if (categoryId != null) {
+            category = categoryRepository.findById(categoryId)
+                    .orElseThrow(() -> new RuntimeException("❌ Categoría no encontrada con ID: " + categoryId));
         }
 
         Cloudinary cloudinary = new Cloudinary(ObjectUtils.asMap(
@@ -59,10 +73,11 @@ public class ImageService {
 
         for (MultipartFile file : files) {
             try {
-                // 📤 Subir imagen a Cloudinary
-                Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap(
-                        "folder", "fitnorius/products/gallery/"
-                ));
+                String folder = (product != null)
+                        ? "fitnorius/products/gallery/"
+                        : "fitnorius/categories/gallery/";
+
+                Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap("folder", folder));
 
                 String imageUrl = uploadResult.get("secure_url").toString();
                 String publicId = uploadResult.get("public_id").toString();
@@ -71,12 +86,12 @@ public class ImageService {
                         .url(imageUrl)
                         .publicId(publicId)
                         .product(product)
+                        .category(category)
                         .build();
 
-                Image saved = imageRepository.saveAndFlush(image);
-                savedImages.add(saved);
+                savedImages.add(imageRepository.saveAndFlush(image));
 
-                System.out.println("📸 Imagen subida y guardada en BD → " + imageUrl);
+                System.out.println("📸 Imagen subida y guardada: " + imageUrl);
 
             } catch (IOException e) {
                 throw new RuntimeException("❌ Error al subir imagen a Cloudinary", e);
@@ -99,27 +114,26 @@ public class ImageService {
                         "api_secret", apiSecret
                 ));
 
-                // 🔥 Eliminar de Cloudinary
+                // 🔥 Eliminar en Cloudinary
                 if (img.getPublicId() != null && !img.getPublicId().isEmpty()) {
                     Map result = cloudinary.uploader().destroy(img.getPublicId(), ObjectUtils.emptyMap());
                     System.out.println("✅ Imagen eliminada de Cloudinary: " + result);
                 } else {
-                    System.out.println("⚠️ La imagen no tiene public_id registrado en la BD");
+                    System.out.println("⚠️ Imagen sin public_id en BD");
                 }
 
-                // 🔥 Eliminar de la base de datos
+                // 🔥 Eliminar de la BD
                 imageRepository.delete(img);
                 imageRepository.flush();
 
-                System.out.println("✅ Registro eliminado de la base de datos (ID: " + id + ")");
+                System.out.println("✅ Imagen eliminada de BD (ID: " + id + ")");
                 return true;
 
             } catch (Exception e) {
-                System.err.println("❌ Error eliminando imagen ID " + id + ": " + e.getMessage());
-                throw new RuntimeException("Error eliminando imagen con ID: " + id, e);
+                throw new RuntimeException("❌ Error eliminando imagen ID " + id + ": " + e.getMessage(), e);
             }
         }).orElseGet(() -> {
-            System.err.println("⚠️ Imagen no encontrada en BD con ID: " + id);
+            System.err.println("⚠️ Imagen no encontrada con ID: " + id);
             return false;
         });
     }
