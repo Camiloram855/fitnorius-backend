@@ -27,7 +27,6 @@ public class CategoryService {
 
     private final Cloudinary cloudinary;
 
-    // 🔧 Constructor con Cloudinary configurado desde variables de entorno
     public CategoryService(
             CategoryRepository categoryRepository,
             ProductRepository productRepository,
@@ -45,12 +44,16 @@ public class CategoryService {
     }
 
     public List<Category> getAllCategories() {
-        return categoryRepository.findAll();
+        // ✅ Aseguramos que cada categoría tenga su URL visible al frontend
+        List<Category> categories = categoryRepository.findAll();
+        categories.forEach(cat -> {
+            if (cat.getImageUrl() != null && !cat.getImageUrl().startsWith("https://")) {
+                cat.setImageUrl("https://res.cloudinary.com/" + cloudinary.config.cloudName + "/image/upload/" + cat.getImageUrl());
+            }
+        });
+        return categories;
     }
 
-    /**
-     * 🆕 Crea una categoría con nombre e imagen (subida a Cloudinary)
-     */
     public Category createCategory(String name, MultipartFile imageFile) throws IOException {
         Category category = new Category();
         category.setName(name);
@@ -67,9 +70,6 @@ public class CategoryService {
         return categoryRepository.save(category);
     }
 
-    /**
-     * 🔄 Actualiza una categoría (nombre y opcionalmente imagen en Cloudinary)
-     */
     @Transactional
     public Category updateCategory(Long id, String name, MultipartFile imageFile) throws IOException {
         Category category = categoryRepository.findById(id)
@@ -78,10 +78,8 @@ public class CategoryService {
         category.setName(name);
 
         if (imageFile != null && !imageFile.isEmpty()) {
-            // 🗑️ Eliminar la imagen anterior de Cloudinary
             deleteCategoryImage(category);
 
-            // 📤 Subir la nueva imagen
             Map uploadResult = cloudinary.uploader().upload(imageFile.getBytes(), ObjectUtils.asMap(
                     "folder", "fitnorius/categories/"
             ));
@@ -93,9 +91,6 @@ public class CategoryService {
         return categoryRepository.save(category);
     }
 
-    /**
-     * ❌ Elimina una categoría (si no tiene productos)
-     */
     @Transactional
     public boolean deleteCategory(Long id) {
         Optional<Category> categoryOpt = categoryRepository.findById(id);
@@ -113,9 +108,6 @@ public class CategoryService {
         return false;
     }
 
-    /**
-     * ❌ Elimina la categoría junto con sus productos asociados
-     */
     @Transactional
     public boolean deleteCategoryWithProducts(Long id) {
         Optional<Category> categoryOpt = categoryRepository.findById(id);
@@ -130,9 +122,6 @@ public class CategoryService {
         return false;
     }
 
-    /**
-     * 🧹 Elimina la imagen asociada en Cloudinary
-     */
     private void deleteCategoryImage(Category category) {
         try {
             if (category.getCloudinaryPublicId() != null) {
