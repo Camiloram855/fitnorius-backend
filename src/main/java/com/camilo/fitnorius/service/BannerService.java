@@ -2,16 +2,15 @@ package com.camilo.fitnorius.service;
 
 import com.camilo.fitnorius.model.Banner;
 import com.camilo.fitnorius.repository.BannerRepository;
+import com.cloudinary.Cloudinary;
+import com.cloudinary.utils.ObjectUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -20,46 +19,51 @@ public class BannerService {
     @Autowired
     private BannerRepository bannerRepository;
 
-    // 📁 Directorio donde se guardarán las imágenes
-    private final String uploadDir = "uploads/banner/";
+    // 🔹 Variables desde application.properties
+    @Value("${cloudinary.cloud_name}")
+    private String cloudName;
+
+    @Value("${cloudinary.api_key}")
+    private String apiKey;
+
+    @Value("${cloudinary.api_secret}")
+    private String apiSecret;
 
     // 🔹 Obtener el banner actual
     public Banner getCurrentBanner() {
         Optional<Banner> banner = bannerRepository.findAll().stream().findFirst();
-        return banner.orElse(new Banner("/uploads/banner/default-banner.png"));
+        return banner.orElse(new Banner("https://res.cloudinary.com/" + cloudName + "/image/upload/v1720000000/default-banner.png"));
     }
 
-    // 🔹 Guardar o actualizar el banner
+    // 🔹 Subir el banner a Cloudinary
     public Banner saveBanner(MultipartFile file) {
         try {
-            // Crear el directorio si no existe
-            File directory = new File(uploadDir);
-            if (!directory.exists()) directory.mkdirs();
+            // Crear instancia de Cloudinary
+            Cloudinary cloudinary = new Cloudinary(ObjectUtils.asMap(
+                    "cloud_name", cloudName,
+                    "api_key", apiKey,
+                    "api_secret", apiSecret
+            ));
 
-            // Nombre único para evitar conflictos
-            String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
-            Path filePath = Paths.get(uploadDir + fileName);
-            Files.write(filePath, file.getBytes());
+            // 📤 Subir imagen
+            Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap(
+                    "folder", "fitnorius/banner/"
+            ));
 
-            // ✅ Generar URL relativa (para que React no cambie nada)
-            String imageUrl = "/uploads/banner/" + fileName;
+            String imageUrl = uploadResult.get("secure_url").toString();
 
-            // También podrías generar URL absoluta:
-            // String baseUrl = ServletUriComponentsBuilder.fromCurrentContextPath().toUriString();
-            // String imageUrl = baseUrl + "/uploads/banner/" + fileName;
-
-            // Actualizar o crear el banner
+            // Guardar o actualizar el banner en la base de datos
             Banner banner = getCurrentBanner();
             banner.setImageUrl(imageUrl);
             bannerRepository.save(banner);
 
             return banner;
         } catch (IOException e) {
-            throw new RuntimeException("❌ Error al guardar el banner", e);
+            throw new RuntimeException("❌ Error al subir el banner a Cloudinary", e);
         }
     }
 
-    // 🔹 Restablecer (borra el registro en la base de datos)
+    // 🔹 Restablecer el banner
     public void resetBanner() {
         bannerRepository.deleteAll();
     }
