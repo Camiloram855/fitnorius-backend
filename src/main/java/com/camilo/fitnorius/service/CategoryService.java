@@ -3,14 +3,17 @@ package com.camilo.fitnorius.service;
 import com.camilo.fitnorius.model.Category;
 import com.camilo.fitnorius.repository.CategoryRepository;
 import com.camilo.fitnorius.repository.ProductRepository;
+import com.cloudinary.Cloudinary;
+import com.cloudinary.utils.ObjectUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.*;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -22,67 +25,76 @@ public class CategoryService {
     @Autowired
     private ProductRepository productRepository;
 
-    private final String uploadDir = "uploads/categories/";
+    private final Cloudinary cloudinary;
+
+    // 🔧 Constructor con Cloudinary configurado desde variables de entorno
+    public CategoryService(
+            CategoryRepository categoryRepository,
+            ProductRepository productRepository,
+            @Value("${cloudinary.cloud_name}") String cloudName,
+            @Value("${cloudinary.api_key}") String apiKey,
+            @Value("${cloudinary.api_secret}") String apiSecret
+    ) {
+        this.categoryRepository = categoryRepository;
+        this.productRepository = productRepository;
+        this.cloudinary = new Cloudinary(ObjectUtils.asMap(
+                "cloud_name", cloudName,
+                "api_key", apiKey,
+                "api_secret", apiSecret
+        ));
+    }
 
     public List<Category> getAllCategories() {
         return categoryRepository.findAll();
     }
 
+    /**
+     * 🆕 Crea una categoría con nombre e imagen (subida a Cloudinary)
+     */
     public Category createCategory(String name, MultipartFile imageFile) throws IOException {
         Category category = new Category();
         category.setName(name);
 
         if (imageFile != null && !imageFile.isEmpty()) {
-            String fileName = System.currentTimeMillis() + "_" + imageFile.getOriginalFilename();
-            Path uploadPath = Paths.get(uploadDir);
+            Map uploadResult = cloudinary.uploader().upload(imageFile.getBytes(), ObjectUtils.asMap(
+                    "folder", "fitnorius/categories/"
+            ));
 
-            if (!Files.exists(uploadPath)) {
-                Files.createDirectories(uploadPath);
-            }
-
-            Path filePath = uploadPath.resolve(fileName);
-            Files.copy(imageFile.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-
-            category.setImage("/" + uploadDir + fileName);
+            category.setImageUrl(uploadResult.get("secure_url").toString());
+            category.setCloudinaryPublicId(uploadResult.get("public_id").toString());
         }
 
         return categoryRepository.save(category);
     }
 
     /**
-     * 🔄 Actualiza una categoría (nombre y opcionalmente imagen).
+     * 🔄 Actualiza una categoría (nombre y opcionalmente imagen en Cloudinary)
      */
     @Transactional
     public Category updateCategory(Long id, String name, MultipartFile imageFile) throws IOException {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Categoría no encontrada"));
 
-        // actualizar el nombre
         category.setName(name);
 
-        // si hay nueva imagen, reemplazar
         if (imageFile != null && !imageFile.isEmpty()) {
-            // eliminar imagen anterior
+            // 🗑️ Eliminar la imagen anterior de Cloudinary
             deleteCategoryImage(category);
 
-            String fileName = System.currentTimeMillis() + "_" + imageFile.getOriginalFilename();
-            Path uploadPath = Paths.get(uploadDir);
+            // 📤 Subir la nueva imagen
+            Map uploadResult = cloudinary.uploader().upload(imageFile.getBytes(), ObjectUtils.asMap(
+                    "folder", "fitnorius/categories/"
+            ));
 
-            if (!Files.exists(uploadPath)) {
-                Files.createDirectories(uploadPath);
-            }
-
-            Path filePath = uploadPath.resolve(fileName);
-            Files.copy(imageFile.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-
-            category.setImage("/" + uploadDir + fileName);
+            category.setImageUrl(uploadResult.get("secure_url").toString());
+            category.setCloudinaryPublicId(uploadResult.get("public_id").toString());
         }
 
         return categoryRepository.save(category);
     }
 
     /**
-     * Elimina solo la categoría (si no tiene productos asociados).
+     * ❌ Elimina una categoría (si no tiene productos)
      */
     @Transactional
     public boolean deleteCategory(Long id) {
@@ -90,7 +102,6 @@ public class CategoryService {
         if (categoryOpt.isPresent()) {
             Category category = categoryOpt.get();
 
-            // Verificar si la categoría tiene productos antes de borrar
             if (!productRepository.findByCategoryId(id).isEmpty()) {
                 throw new IllegalStateException("No se puede eliminar la categoría porque tiene productos asociados.");
             }
@@ -103,7 +114,7 @@ public class CategoryService {
     }
 
     /**
-     * Elimina la categoría y todos sus productos asociados.
+     * ❌ Elimina la categoría junto con sus productos asociados
      */
     @Transactional
     public boolean deleteCategoryWithProducts(Long id) {
@@ -111,13 +122,8 @@ public class CategoryService {
         if (categoryOpt.isPresent()) {
             Category category = categoryOpt.get();
 
-            // Eliminar los productos asociados primero
             productRepository.deleteByCategoryId(id);
-
-            // Borrar imagen si existe
             deleteCategoryImage(category);
-
-            // Finalmente eliminar la categoría
             categoryRepository.deleteById(id);
             return true;
         }
@@ -125,16 +131,16 @@ public class CategoryService {
     }
 
     /**
-     * Método auxiliar para borrar la imagen asociada en disco.
+     * 🧹 Elimina la imagen asociada en Cloudinary
      */
     private void deleteCategoryImage(Category category) {
-        if (category.getImage() != null) {
-            Path imagePath = Paths.get(category.getImage().replaceFirst("/", ""));
-            try {
-                Files.deleteIfExists(imagePath);
-            } catch (IOException e) {
-                e.printStackTrace();
+        try {
+            if (category.getCloudinaryPublicId() != null) {
+                cloudinary.uploader().destroy(category.getCloudinaryPublicId(), ObjectUtils.emptyMap());
+                System.out.println("🗑️ Imagen eliminada de Cloudinary: " + category.getCloudinaryPublicId());
             }
+        } catch (Exception e) {
+            System.err.println("⚠️ Error eliminando imagen en Cloudinary: " + e.getMessage());
         }
     }
 }

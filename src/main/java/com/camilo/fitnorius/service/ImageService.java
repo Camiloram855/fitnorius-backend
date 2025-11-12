@@ -4,19 +4,18 @@ import com.camilo.fitnorius.model.Image;
 import com.camilo.fitnorius.model.Product;
 import com.camilo.fitnorius.repository.ImageRepository;
 import com.camilo.fitnorius.repository.ProductRepository;
+import com.cloudinary.Cloudinary;
+import com.cloudinary.utils.ObjectUtils;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -25,82 +24,98 @@ public class ImageService {
     private final ImageRepository imageRepository;
     private final ProductRepository productRepository;
 
-    @Value("${upload.dir:uploads/products}")
-    private String uploadDir;
+    // 🔹 Variables de configuración de Cloudinary
+    @Value("${cloudinary.cloud_name}")
+    private String cloudName;
 
+    @Value("${cloudinary.api_key}")
+    private String apiKey;
+
+    @Value("${cloudinary.api_secret}")
+    private String apiSecret;
+
+    // ✅ Buscar imágenes por producto
     public List<Image> findByProductId(Long productId) {
         return imageRepository.findByProductId(productId);
     }
 
+    // ✅ Subir imágenes miniatura de producto a Cloudinary
     @Transactional
     public List<Image> saveImages(List<MultipartFile> files, Long productId) {
         Product product = null;
 
         if (productId != null) {
-            product = productRepository.findById(productId).orElse(null);
+            product = productRepository.findById(productId)
+                    .orElseThrow(() -> new RuntimeException("❌ Producto no encontrado con ID: " + productId));
         }
 
-        Path basePath = Paths.get(System.getProperty("user.dir"), uploadDir);
-        File folder = basePath.toFile();
-
-        if (!folder.exists() && !folder.mkdirs()) {
-            throw new RuntimeException("❌ No se pudo crear la carpeta: " + folder.getAbsolutePath());
-        }
+        Cloudinary cloudinary = new Cloudinary(ObjectUtils.asMap(
+                "cloud_name", cloudName,
+                "api_key", apiKey,
+                "api_secret", apiSecret
+        ));
 
         List<Image> savedImages = new ArrayList<>();
 
         for (MultipartFile file : files) {
             try {
-                String filename = UUID.randomUUID() + "_" + file.getOriginalFilename();
-                File destination = new File(folder, filename);
-                file.transferTo(destination);
+                // 📤 Subir imagen a Cloudinary
+                Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap(
+                        "folder", "fitnorius/products/gallery/"
+                ));
 
-                String fileUrl = "/uploads/products/" + filename;
+                String imageUrl = uploadResult.get("secure_url").toString();
+                String publicId = uploadResult.get("public_id").toString();
 
                 Image image = Image.builder()
-                        .url(fileUrl)
+                        .url(imageUrl)
+                        .publicId(publicId)
                         .product(product)
                         .build();
 
-                Image saved = imageRepository.saveAndFlush(image); // ✅ Fuerza persistencia inmediata
+                Image saved = imageRepository.saveAndFlush(image);
                 savedImages.add(saved);
 
-                System.out.println("📸 Guardada imagen " + fileUrl + " (ID: " + saved.getId() + ")");
+                System.out.println("📸 Imagen subida y guardada en BD → " + imageUrl);
 
             } catch (IOException e) {
-                throw new RuntimeException("❌ Error guardando archivo: " + file.getOriginalFilename(), e);
+                throw new RuntimeException("❌ Error al subir imagen a Cloudinary", e);
             }
         }
 
         return savedImages;
     }
 
+    // ✅ Eliminar imagen tanto en Cloudinary como en BD
     @Transactional
     public boolean deleteImage(Long id) {
         System.out.println("🗑️ Intentando eliminar imagen con ID: " + id);
 
         return imageRepository.findById(id).map(img -> {
             try {
-                // Archivo físico
-                String filename = new File(img.getUrl()).getName();
-                Path filePath = Paths.get(System.getProperty("user.dir"), uploadDir, filename);
-                File file = filePath.toFile();
+                Cloudinary cloudinary = new Cloudinary(ObjectUtils.asMap(
+                        "cloud_name", cloudName,
+                        "api_key", apiKey,
+                        "api_secret", apiSecret
+                ));
 
-                if (file.exists() && file.delete()) {
-                    System.out.println("✅ Archivo físico eliminado: " + file.getAbsolutePath());
+                // 🔥 Eliminar de Cloudinary
+                if (img.getPublicId() != null && !img.getPublicId().isEmpty()) {
+                    Map result = cloudinary.uploader().destroy(img.getPublicId(), ObjectUtils.emptyMap());
+                    System.out.println("✅ Imagen eliminada de Cloudinary: " + result);
                 } else {
-                    System.out.println("⚠️ Archivo físico no encontrado o ya eliminado: " + file.getAbsolutePath());
+                    System.out.println("⚠️ La imagen no tiene public_id registrado en la BD");
                 }
 
-                // Registro en base de datos
+                // 🔥 Eliminar de la base de datos
                 imageRepository.delete(img);
                 imageRepository.flush();
 
                 System.out.println("✅ Registro eliminado de la base de datos (ID: " + id + ")");
                 return true;
+
             } catch (Exception e) {
                 System.err.println("❌ Error eliminando imagen ID " + id + ": " + e.getMessage());
-                e.printStackTrace();
                 throw new RuntimeException("Error eliminando imagen con ID: " + id, e);
             }
         }).orElseGet(() -> {
@@ -108,5 +123,4 @@ public class ImageService {
             return false;
         });
     }
-
 }

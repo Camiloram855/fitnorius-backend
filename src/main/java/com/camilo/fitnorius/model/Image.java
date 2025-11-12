@@ -24,4 +24,7 @@ public class Image {
     @JoinColumn(name = "product_id", nullable = false)
     @JsonIgnore
     private Product product;
+
+    @Column(name = "public_id")
+    private String publicId;
 }

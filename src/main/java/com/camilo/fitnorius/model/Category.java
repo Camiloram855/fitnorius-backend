@@ -21,8 +21,13 @@ public class Category {
     @Column(nullable = false, unique = true, length = 100)
     private String name;
 
-    @Column(nullable = true, length = 255)
-    private String image;
+    // 🌩️ URL pública de la imagen almacenada en Cloudinary
+    @Column(name = "image_url")
+    private String imageUrl;
+
+    // 🆔 ID único de Cloudinary (necesario para eliminar o actualizar)
+    @Column(name = "cloudinary_public_id")
+    private String cloudinaryPublicId;
 
     // 🧩 Relación con productos
     @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true)

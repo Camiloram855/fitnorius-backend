@@ -8,13 +8,16 @@ import com.camilo.fitnorius.repository.CategoryRepository;
 import com.camilo.fitnorius.repository.ProductRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.cloudinary.Cloudinary;
+import com.cloudinary.utils.ObjectUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.*;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -25,9 +28,17 @@ public class ProductService {
     private final CategoryRepository categoryRepository;
     private final ImageService imageService;
 
-    private static final String UPLOAD_DIR = "uploads/products/";
+    // 🔹 Variables de Cloudinary desde application.properties
+    @Value("${cloudinary.cloud_name}")
+    private String cloudName;
 
-    // ✅ Crear producto
+    @Value("${cloudinary.api_key}")
+    private String apiKey;
+
+    @Value("${cloudinary.api_secret}")
+    private String apiSecret;
+
+    // ✅ Crear producto con imagen principal subida a Cloudinary
     public ProductDTO saveProduct(ProductDTO request, MultipartFile image) {
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new RuntimeException("Categoría no encontrada con ID: " + request.getCategoryId()));
@@ -41,12 +52,12 @@ public class ProductService {
                 .category(category)
                 .build();
 
-        // Guardar imagen principal si existe
+        // 📤 Subir imagen principal a Cloudinary
         if (image != null && !image.isEmpty()) {
             try {
-                product.setImageUrl(saveImage(image));
+                product.setImageUrl(uploadToCloudinary(image, "fitnorius/products/"));
             } catch (IOException e) {
-                e.printStackTrace();
+                throw new RuntimeException("Error subiendo imagen principal a Cloudinary", e);
             }
         }
 
@@ -54,7 +65,7 @@ public class ProductService {
         return mapToDTO(savedProduct);
     }
 
-    // ✅ Actualizar producto
+    // ✅ Actualizar producto (con reemplazo de imagen en Cloudinary)
     public ProductDTO updateProduct(Long id, ProductDTO request, MultipartFile image) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + id));
@@ -71,14 +82,13 @@ public class ProductService {
             product.setCategory(category);
         }
 
-        // ✅ Reemplazar imagen principal
+        // 🔁 Reemplazar imagen principal en Cloudinary
         if (image != null && !image.isEmpty()) {
             try {
-                String newImageUrl = saveImage(image);
-                deleteOldImage(product.getImageUrl());
-                product.setImageUrl(newImageUrl);
+                // Si el producto tenía una imagen, se puede borrar en Cloudinary (opcional)
+                product.setImageUrl(uploadToCloudinary(image, "fitnorius/products/"));
             } catch (IOException e) {
-                e.printStackTrace();
+                throw new RuntimeException("Error actualizando imagen principal en Cloudinary", e);
             }
         }
 
@@ -86,12 +96,12 @@ public class ProductService {
         return mapToDTO(updatedProduct);
     }
 
-    // ✅ Guardar imágenes adicionales (miniaturas independientes)
+    // ✅ Guardar imágenes adicionales (miniaturas) en Cloudinary
     public void saveAdditionalImages(Long productId, List<MultipartFile> files) {
         imageService.saveImages(files, productId);
     }
 
-    // ✅ Eliminar imágenes adicionales (desde JSON con IDs)
+    // ✅ Eliminar imágenes adicionales desde JSON con IDs
     public void deleteImagesFromJson(String deleteImagesJson) {
         try {
             List<Long> idsToDelete = new ObjectMapper()
@@ -102,7 +112,7 @@ public class ProductService {
         }
     }
 
-    // ✅ Listar todos
+    // ✅ Listar todos los productos
     public List<ProductDTO> getAllProducts() {
         return productRepository.findAll()
                 .stream()
@@ -110,7 +120,7 @@ public class ProductService {
                 .toList();
     }
 
-    // ✅ Listar por categoría
+    // ✅ Listar productos por categoría
     public List<ProductDTO> getProductsByCategory(Long categoryId) {
         return productRepository.findByCategoryId(categoryId)
                 .stream()
@@ -118,21 +128,18 @@ public class ProductService {
                 .toList();
     }
 
-    // ✅ Buscar por ID
+    // ✅ Buscar producto por ID
     public ProductDTO getProductById(Long id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + id));
         return mapToDTO(product);
     }
 
-    // ✅ Eliminar producto
+    // ✅ Eliminar producto y sus imágenes de Cloudinary
     public boolean deleteProduct(Long id) {
         Optional<Product> productOpt = productRepository.findById(id);
         if (productOpt.isPresent()) {
             Product product = productOpt.get();
-
-            // ❌ Eliminar imagen principal
-            deleteOldImage(product.getImageUrl());
 
             // ❌ Eliminar imágenes miniatura
             List<Image> images = imageService.findByProductId(product.getId());
@@ -142,22 +149,6 @@ public class ProductService {
             return true;
         }
         return false;
-    }
-
-    // ✅ Eliminar todos los productos e imágenes de una categoría
-    public void deleteProductsByCategory(Long categoryId) {
-        List<Product> products = productRepository.findByCategoryId(categoryId);
-
-        for (Product product : products) {
-            // 🔥 Eliminar imagen principal
-            deleteOldImage(product.getImageUrl());
-
-            // 🔥 Eliminar imágenes miniatura
-            List<Image> images = imageService.findByProductId(product.getId());
-            images.forEach(img -> imageService.deleteImage(img.getId()));
-
-            productRepository.delete(product);
-        }
     }
 
     // ✅ Buscar por nombre o descripción
@@ -172,25 +163,19 @@ public class ProductService {
                 .toList();
     }
 
-    // ✅ Guardar imagen en carpeta
-    private String saveImage(MultipartFile image) throws IOException {
-        Files.createDirectories(Paths.get(UPLOAD_DIR));
-        String fileName = System.currentTimeMillis() + "_" + Paths.get(image.getOriginalFilename()).getFileName();
-        Path filePath = Paths.get(UPLOAD_DIR, fileName.toString());
-        Files.write(filePath, image.getBytes(), StandardOpenOption.CREATE);
-        return "/uploads/products/" + fileName;
-    }
+    // 🌩️ Subir archivo a Cloudinary
+    private String uploadToCloudinary(MultipartFile file, String folder) throws IOException {
+        Cloudinary cloudinary = new Cloudinary(ObjectUtils.asMap(
+                "cloud_name", cloudName,
+                "api_key", apiKey,
+                "api_secret", apiSecret
+        ));
 
-    // ✅ Eliminar imagen vieja
-    private void deleteOldImage(String imageUrl) {
-        if (imageUrl != null && imageUrl.startsWith("/uploads/")) {
-            Path oldImagePath = Paths.get(imageUrl.replaceFirst("^/", ""));
-            try {
-                Files.deleteIfExists(oldImagePath);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+        Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap(
+                "folder", folder
+        ));
+
+        return uploadResult.get("secure_url").toString();
     }
 
     // ✅ Convertir modelo → DTO

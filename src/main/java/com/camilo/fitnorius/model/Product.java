@@ -27,15 +27,18 @@ public class Product {
     private BigDecimal price;
 
     @Column(name = "old_price", precision = 15, scale = 2)
-    private BigDecimal oldPrice;   // precio tachado (opcional)
+    private BigDecimal oldPrice;   // Precio tachado (opcional)
 
     @Column(precision = 5, scale = 2)
-    private BigDecimal discount;   // descuento en %
+    private BigDecimal discount;   // Descuento en %
 
-    private String imageUrl;   // ruta donde guardas la imagen principal
+    // 🌩️ URL principal alojada en Cloudinary
+    @Column(name = "image_url", length = 500)
+    private String imageUrl;
 
+    // 📝 Descripción del producto
     @Column(columnDefinition = "TEXT")
-    private String description; // descripción del producto
+    private String description;
 
     // 🔗 Relación con Category
     @ManyToOne(fetch = FetchType.LAZY)
@@ -44,8 +47,19 @@ public class Product {
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Category category;
 
-    // 🧩 Relación con las imágenes miniatura
-    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    // 🧩 Relación con imágenes miniatura (también en Cloudinary)
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @JsonManagedReference
     private List<Image> images = new ArrayList<>();
+
+    // ✅ Métodos de ayuda para Cloudinary
+    public void addImage(Image image) {
+        images.add(image);
+        image.setProduct(this);
+    }
+
+    public void removeImage(Image image) {
+        images.remove(image);
+        image.setProduct(null);
+    }
 }
