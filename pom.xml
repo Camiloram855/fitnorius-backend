@@ -63,6 +63,16 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- ✅ Cloudinary SDK oficial actualizado -->
+        <dependency>
+            <groupId>com.cloudinary</groupId>
+            <artifactId>cloudinary-http44</artifactId>
+            <version>1.36.0</version>
+        </dependency>
+
+
+
+
         <!-- ✅ JWT (si lo usas para login con tokens) -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
@@ -98,4 +108,7 @@
             </plugin>
         </plugins>
     </build>
+
+    <!-- 📦 Cloudinary SDK -->
+
 </project>

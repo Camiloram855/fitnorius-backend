@@ -31,7 +31,7 @@ public class SecurityConfig {
                         .anyRequest().permitAll()
                 )
                 // 🔧 Permite iframes (para H2-console u otros)
-                .headers(headers -> headers.frameOptions(frame -> frame.disable()));
+                .headers( headers -> headers.frameOptions(frame -> frame.disable()));
 
         return http.build();
     }

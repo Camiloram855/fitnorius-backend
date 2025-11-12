@@ -11,4 +11,5 @@ public class FitnoriusBackendApplication extends SpringBootServletInitializer {
         SpringApplication.run(FitnoriusBackendApplication.class, args);
         System.out.println("🚀 Fitnorius Backend iniciado correctamente...");
     }
+
 }
