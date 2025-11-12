@@ -5,7 +5,6 @@ import com.camilo.fitnorius.repository.CategoryRepository;
 import com.camilo.fitnorius.repository.ProductRepository;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,14 +18,11 @@ import java.util.Optional;
 @Service
 public class CategoryService {
 
-    @Autowired
-    private CategoryRepository categoryRepository;
-
-    @Autowired
-    private ProductRepository productRepository;
-
+    private final CategoryRepository categoryRepository;
+    private final ProductRepository productRepository;
     private final Cloudinary cloudinary;
 
+    // 🔧 Constructor con configuración de Cloudinary
     public CategoryService(
             CategoryRepository categoryRepository,
             ProductRepository productRepository,
@@ -43,17 +39,16 @@ public class CategoryService {
         ));
     }
 
+    /**
+     * 📦 Obtener todas las categorías
+     */
     public List<Category> getAllCategories() {
-        // ✅ Aseguramos que cada categoría tenga su URL visible al frontend
-        List<Category> categories = categoryRepository.findAll();
-        categories.forEach(cat -> {
-            if (cat.getImageUrl() != null && !cat.getImageUrl().startsWith("https://")) {
-                cat.setImageUrl("https://res.cloudinary.com/" + cloudinary.config.cloudName + "/image/upload/" + cat.getImageUrl());
-            }
-        });
-        return categories;
+        return categoryRepository.findAll();
     }
 
+    /**
+     * 🆕 Crear una nueva categoría con imagen subida a Cloudinary
+     */
     public Category createCategory(String name, MultipartFile imageFile) throws IOException {
         Category category = new Category();
         category.setName(name);
@@ -63,20 +58,27 @@ public class CategoryService {
                     "folder", "fitnorius/categories/"
             ));
 
-            category.setImageUrl(uploadResult.get("secure_url").toString());
-            category.setCloudinaryPublicId(uploadResult.get("public_id").toString());
+            // ✅ Guardar secure_url y public_id correctamente
+            category.setCloudinaryData(
+                    uploadResult.get("secure_url").toString(),
+                    uploadResult.get("public_id").toString()
+            );
         }
 
         return categoryRepository.save(category);
     }
 
+    /**
+     * 🔄 Actualiza nombre e imagen (si se envía una nueva)
+     */
     @Transactional
     public Category updateCategory(Long id, String name, MultipartFile imageFile) throws IOException {
         Category category = categoryRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Categoría no encontrada"));
+                .orElseThrow(() -> new RuntimeException("❌ Categoría no encontrada con ID: " + id));
 
         category.setName(name);
 
+        // 🖼️ Si llega nueva imagen, eliminar la anterior de Cloudinary
         if (imageFile != null && !imageFile.isEmpty()) {
             deleteCategoryImage(category);
 
@@ -84,44 +86,52 @@ public class CategoryService {
                     "folder", "fitnorius/categories/"
             ));
 
-            category.setImageUrl(uploadResult.get("secure_url").toString());
-            category.setCloudinaryPublicId(uploadResult.get("public_id").toString());
+            category.setCloudinaryData(
+                    uploadResult.get("secure_url").toString(),
+                    uploadResult.get("public_id").toString()
+            );
         }
 
         return categoryRepository.save(category);
     }
 
+    /**
+     * ❌ Eliminar categoría solo si no tiene productos asociados
+     */
     @Transactional
     public boolean deleteCategory(Long id) {
         Optional<Category> categoryOpt = categoryRepository.findById(id);
-        if (categoryOpt.isPresent()) {
-            Category category = categoryOpt.get();
+        if (categoryOpt.isEmpty()) return false;
 
-            if (!productRepository.findByCategoryId(id).isEmpty()) {
-                throw new IllegalStateException("No se puede eliminar la categoría porque tiene productos asociados.");
-            }
+        Category category = categoryOpt.get();
 
-            deleteCategoryImage(category);
-            categoryRepository.deleteById(id);
-            return true;
+        if (!productRepository.findByCategoryId(id).isEmpty()) {
+            throw new IllegalStateException("⚠️ No se puede eliminar la categoría porque tiene productos asociados.");
         }
-        return false;
+
+        deleteCategoryImage(category);
+        categoryRepository.delete(category);
+        return true;
     }
 
+    /**
+     * 🧹 Eliminar categoría junto con sus productos
+     */
     @Transactional
     public boolean deleteCategoryWithProducts(Long id) {
         Optional<Category> categoryOpt = categoryRepository.findById(id);
-        if (categoryOpt.isPresent()) {
-            Category category = categoryOpt.get();
+        if (categoryOpt.isEmpty()) return false;
 
-            productRepository.deleteByCategoryId(id);
-            deleteCategoryImage(category);
-            categoryRepository.deleteById(id);
-            return true;
-        }
-        return false;
+        Category category = categoryOpt.get();
+        productRepository.deleteByCategoryId(id);
+        deleteCategoryImage(category);
+        categoryRepository.delete(category);
+        return true;
     }
 
+    /**
+     * 🗑️ Eliminar imagen de Cloudinary si existe
+     */
     private void deleteCategoryImage(Category category) {
         try {
             if (category.getCloudinaryPublicId() != null) {
@@ -129,7 +139,7 @@ public class CategoryService {
                 System.out.println("🗑️ Imagen eliminada de Cloudinary: " + category.getCloudinaryPublicId());
             }
         } catch (Exception e) {
-            System.err.println("⚠️ Error eliminando imagen en Cloudinary: " + e.getMessage());
+            System.err.println("⚠️ Error eliminando imagen de Cloudinary: " + e.getMessage());
         }
     }
 }
