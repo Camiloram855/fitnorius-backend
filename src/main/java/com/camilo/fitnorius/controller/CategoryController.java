@@ -1,81 +1,80 @@
 package com.camilo.fitnorius.controller;
 
 import com.camilo.fitnorius.model.Category;
-import com.camilo.fitnorius.service.CategoryService;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.camilo.fitnorius.repository.CategoryRepository;
+import com.cloudinary.Cloudinary;
+import com.cloudinary.utils.ObjectUtils;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/categories")
-@CrossOrigin(origins = {
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "https://fitnorius-gym.vercel.app",
-        "https://fitnorius-gym-git-main-juan-ks-projects-b6132ea5.vercel.app",
-        "https://fitnorius-aghr9tnpz-juan-ks-projects-b6132ea5.vercel.app"
-})
+@CrossOrigin(origins = "*")
+@RequiredArgsConstructor
 public class CategoryController {
 
-    @Autowired
-    private CategoryService categoryService;
+    private final CategoryRepository categoryRepository;
+    private final Cloudinary cloudinary;
 
-    // ✅ Obtener todas las categorías
+    // 📦 Obtener todas las categorías
     @GetMapping
     public List<Category> getAllCategories() {
-        return categoryService.getAllCategories();
+        return categoryRepository.findAll();
     }
 
-    // ✅ Crear nueva categoría con imagen (manejo seguro con @RequestPart)
+    // 📤 Crear una nueva categoría con imagen
     @PostMapping(consumes = {"multipart/form-data"})
-    public ResponseEntity<Category> createCategory(
-            @RequestPart("name") String name,
-            @RequestPart(value = "image", required = false) MultipartFile imageFile
-    ) throws IOException {
-
-        System.out.println("📩 Petición recibida en createCategory");
-        System.out.println("🧾 Nombre recibido: " + name);
-        System.out.println("📸 Archivo recibido: " + (imageFile != null ? imageFile.getOriginalFilename() : "NULO"));
-
-        Category savedCategory = categoryService.createCategory(name, imageFile);
-
-        System.out.println("✅ Categoría creada con ID: " + savedCategory.getId());
-        System.out.println("🌐 URL de imagen guardada: " + savedCategory.getImageUrl());
-
-        return ResponseEntity.ok(savedCategory);
-    }
-
-    // ✅ Actualizar categoría (nombre e imagen opcional)
-    @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
-    public ResponseEntity<Category> updateCategory(
-            @PathVariable Long id,
-            @RequestPart("name") String name,
-            @RequestPart(value = "image", required = false) MultipartFile imageFile
-    ) throws IOException {
-
-        System.out.println("✏️ Actualizando categoría ID: " + id);
-        Category updatedCategory = categoryService.updateCategory(id, name, imageFile);
-        return ResponseEntity.ok(updatedCategory);
-    }
-
-    // ✅ Eliminar categoría junto con sus productos asociados
-    @DeleteMapping("/{id}")
-    public ResponseEntity<String> deleteCategory(@PathVariable Long id) {
+    public ResponseEntity<?> createCategory(
+            @RequestParam("name") String name,
+            @RequestParam("image") MultipartFile image
+    ) {
         try {
-            boolean deleted = categoryService.deleteCategoryWithProducts(id);
-            if (deleted) {
-                System.out.println("🗑️ Categoría eliminada correctamente (ID: " + id + ")");
-                return ResponseEntity.ok("Categoría y productos eliminados correctamente.");
-            } else {
-                return ResponseEntity.notFound().build();
-            }
-        } catch (Exception e) {
-            System.err.println("⚠️ Error eliminando categoría: " + e.getMessage());
-            return ResponseEntity.status(500).body("Error al eliminar la categoría: " + e.getMessage());
+            // 🖼️ Subir imagen a Cloudinary
+            Map uploadResult = cloudinary.uploader().upload(
+                    image.getBytes(),
+                    ObjectUtils.asMap("folder", "fitnorius/categories")
+            );
+
+            // 🧱 Crear categoría con URL de la imagen
+            Category category = new Category();
+            category.setName(name);
+            category.setImageUrl(uploadResult.get("secure_url").toString());
+            category.setCloudinaryPublicId(uploadResult.get("public_id").toString());
+
+            Category savedCategory = categoryRepository.save(category);
+
+            return ResponseEntity.ok(savedCategory);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError()
+                    .body("Error al subir imagen o guardar categoría ❌");
         }
+    }
+
+    // 🗑️ Eliminar categoría y su imagen de Cloudinary
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteCategory(@PathVariable Long id) {
+        return categoryRepository.findById(id)
+                .map(category -> {
+                    try {
+                        if (category.getCloudinaryPublicId() != null) {
+                            cloudinary.uploader().destroy(category.getCloudinaryPublicId(), ObjectUtils.emptyMap());
+                        }
+                        categoryRepository.delete(category);
+                        return ResponseEntity.ok("Categoría eliminada ✅");
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        return ResponseEntity.internalServerError()
+                                .body("Error al eliminar imagen de Cloudinary ❌");
+                    }
+                })
+                .orElse(ResponseEntity.notFound().build());
     }
 }
