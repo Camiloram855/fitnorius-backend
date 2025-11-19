@@ -4,7 +4,8 @@ import org.springframework.web.bind.annotation.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.File;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/header-messages")
@@ -15,23 +16,12 @@ public class HeaderMessageController {
     private final File jsonFile;
 
     public HeaderMessageController() throws Exception {
+        jsonFile = new File("headerMessages.json");
 
-        // Ruta donde se guardará el archivo
-        String folderPath = "src/main/resources/data";
-        File folder = new File(folderPath);
-
-        if (!folder.exists()) {
-            folder.mkdirs(); // Crear carpeta si no existe
-        }
-
-        jsonFile = new File(folder, "headerMessages.json");
-
-        // Crear JSON si no existe
         if (!jsonFile.exists()) {
-            Map<String, Object> defaultData = new HashMap<>();
-            defaultData.put("messages", new ArrayList<>());
-
-            mapper.writeValue(jsonFile, defaultData);
+            Map<String, Object> initialData = new HashMap<>();
+            initialData.put("messages", new String[]{});
+            mapper.writeValue(jsonFile, initialData);
         }
     }
 
