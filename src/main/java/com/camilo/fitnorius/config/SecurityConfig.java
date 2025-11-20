@@ -50,7 +50,7 @@ public class SecurityConfig {
         ));
 
         // ✅ Métodos HTTP permitidos
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
 
         // ✅ Cabeceras permitidas
         configuration.setAllowedHeaders(List.of("*"));
