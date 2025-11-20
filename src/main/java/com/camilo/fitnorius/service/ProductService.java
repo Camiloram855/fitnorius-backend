@@ -81,7 +81,7 @@ public class ProductService {
                     .orElseThrow(() -> new RuntimeException("Categoría no encontrada con ID: " + request.getCategoryId()));
             product.setCategory(category);
         }
-
+        product.setAgotado(request.isAgotado());
         // 🔁 Reemplazar imagen principal en Cloudinary
         if (image != null && !image.isEmpty()) {
             try {
@@ -191,9 +191,11 @@ public class ProductService {
                 .imageUrl(product.getImageUrl())
                 .categoryId(product.getCategory().getId())
                 .categoryName(product.getCategory().getName())
+                .agotado(product.isAgotado())   // ← FALTABA ESTO
                 .images(images)
                 .build();
     }
+
 
     public ProductDTO setAgotado(Long id, boolean estado) {
 

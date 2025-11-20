@@ -14,7 +14,6 @@ public class ProductDTO {
     private Long id;
     private String name;
 
-    // 💰 Evita errores de redondeo
     private BigDecimal price;
     private BigDecimal oldPrice;
     private BigDecimal discount;
@@ -23,9 +22,9 @@ public class ProductDTO {
     private Long categoryId;
     private String categoryName;
 
-    // 📝 Descripción opcional
     private String description;
 
-    // 🖼️ Lista de imágenes adicionales (miniaturas)
+    private boolean agotado;  // ← FALTABA ESTO
+
     private List<Image> images;
 }
