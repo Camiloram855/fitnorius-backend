@@ -142,6 +142,6 @@ public class ProductController {
         ProductDTO updated = productService.setAgotado(id, estado);
         return ResponseEntity.ok(updated);
     }
-
+//miplementacion aplicada para git
 
 }
