@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
+
 @Entity
 @Table(name = "products")
 @Data
@@ -40,6 +41,9 @@ public class Product {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(nullable = false)
+    private boolean agotado = false;
+
     // 🔗 Relación con Category
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
@@ -62,4 +66,9 @@ public class Product {
         images.remove(image);
         image.setProduct(null);
     }
+
+
+
+
+
 }

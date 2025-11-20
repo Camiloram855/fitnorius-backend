@@ -194,4 +194,21 @@ public class ProductService {
                 .images(images)
                 .build();
     }
+
+    public ProductDTO setAgotado(Long id, boolean estado) {
+
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+
+        product.setAgotado(estado);
+
+        Product saved = productRepository.save(product);
+
+        return mapToDTO(saved);
+        // usa tu mapper actual
+    }
+
+
+
+
 }

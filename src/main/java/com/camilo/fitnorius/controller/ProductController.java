@@ -13,6 +13,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+
+
 @RestController
 @RequestMapping("/api/products")
 @RequiredArgsConstructor
@@ -131,4 +133,15 @@ public class ProductController {
             return ResponseEntity.status(404).body(response);
         }
     }
+
+    @PatchMapping("/{id}/agotado")
+    public ResponseEntity<ProductDTO> actualizarAgotado(
+            @PathVariable Long id,
+            @RequestParam boolean estado
+    ) {
+        ProductDTO updated = productService.setAgotado(id, estado);
+        return ResponseEntity.ok(updated);
+    }
+
+
 }
