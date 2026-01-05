@@ -9,6 +9,11 @@ import org.springframework.boot.web.servlet.support.SpringBootServletInitializer
 @SpringBootApplication(scanBasePackages = "com.camilo.fitnorius")
 public class FitnoriusBackendApplication extends SpringBootServletInitializer {
 
+    public static void main(String[] args) {
+        SpringApplication.run(FitnoriusBackendApplication.class, args);
+        System.out.println("🚀 Fitnorius Backend iniciado correctamente...");
+    }
+
     @Value("${cloudinary.cloud_name}")
     private String cloudName;
 
@@ -25,5 +30,4 @@ public class FitnoriusBackendApplication extends SpringBootServletInitializer {
         System.out.println("CLOUDINARY_API_KEY: " + apiKey);
         System.out.println("CLOUDINARY_API_SECRET: " + (apiSecret != null ? "✅ Detectado" : "❌ No detectado"));
     }
-
 }
