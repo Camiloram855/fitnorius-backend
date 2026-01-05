@@ -24,18 +24,25 @@ public class FileController {
             @PathVariable String filename
     ) {
         try {
-            Path filePath = Paths.get("uploads").resolve(folder).resolve(filename).normalize();
+            Path filePath = Paths.get("uploads")
+                    .resolve(folder)
+                    .resolve(filename)
+                    .normalize();
+
             Resource resource = new UrlResource(filePath.toUri());
 
-            if (resource.exists()) {
-                return ResponseEntity.ok()
-                        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + resource.getFilename() + "\"")
-                        .body(resource);
-            } else {
-                return ResponseEntity.notFound().build();
+            if (!resource.exists()) {
+                return ResponseEntity.noContent().build(); // 👈 evita reintentos
             }
-        } catch (MalformedURLException e) {
-            return ResponseEntity.badRequest().build();
+
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION,
+                            "inline; filename=\"" + resource.getFilename() + "\"")
+                    .body(resource);
+
+        } catch (Exception e) {
+            return ResponseEntity.noContent().build(); // 👈 silencioso
         }
     }
+
 }
