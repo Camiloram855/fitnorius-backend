@@ -61,8 +61,13 @@ public class ProductController {
     // 🟢 Listar productos por categoría
     @GetMapping("/category/{categoryId}")
     public ResponseEntity<List<ProductDTO>> getProductsByCategory(@PathVariable Long categoryId) {
-        return ResponseEntity.ok(productService.getProductsByCategory(categoryId));
+
+        return ResponseEntity
+                .ok()
+                .header("Cache-Control", "public, max-age=120")
+                .body(productService.getProductsByCategory(categoryId));
     }
+
 
     // 🟢 Buscar productos por nombre o descripción
     @GetMapping("/search")
