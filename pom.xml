@@ -25,6 +25,7 @@
     </properties>
 
     <dependencies>
+
         <!-- ✅ Web -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -49,6 +50,12 @@
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
+        <!-- ✅ Cache en memoria (Spring Cache) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
+
         <!-- ✅ MySQL -->
         <dependency>
             <groupId>com.mysql</groupId>
@@ -63,17 +70,14 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- ✅ Cloudinary SDK oficial actualizado -->
+        <!-- ✅ Cloudinary SDK -->
         <dependency>
             <groupId>com.cloudinary</groupId>
             <artifactId>cloudinary-http44</artifactId>
             <version>1.36.0</version>
         </dependency>
 
-
-
-
-        <!-- ✅ JWT (si lo usas para login con tokens) -->
+        <!-- ✅ JWT -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
@@ -98,6 +102,7 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+
     </dependencies>
 
     <build>
@@ -108,7 +113,5 @@
             </plugin>
         </plugins>
     </build>
-
-    <!-- 📦 Cloudinary SDK -->
 
 </project>

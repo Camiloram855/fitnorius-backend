@@ -6,6 +6,8 @@ import com.camilo.fitnorius.repository.ProductRepository;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -24,15 +26,19 @@ public class CategoryService {
     private final Cloudinary cloudinary;
 
     /**
-     * 📦 Obtener todas las categorías
+     * 📦 Obtener todas las categorías (CACHEADO)
      */
+    @Cacheable(value = "categories")
     public List<Category> getAllCategories() {
+        System.out.println("📦 Categorías desde BD");
         return categoryRepository.findAll();
     }
 
     /**
      * 🆕 Crear categoría con subida a Cloudinary
+     * 🧹 Limpia cache
      */
+    @CacheEvict(value = "categories", allEntries = true)
     public Category createCategory(String name, MultipartFile imageFile) throws IOException {
         Category category = new Category();
         category.setName(name);
@@ -48,11 +54,9 @@ public class CategoryService {
 
             System.out.println("📸 Resultado Cloudinary (Category): " + uploadResult);
 
-            // ✅ Extraer datos de Cloudinary
             String secureUrl = (String) uploadResult.get("secure_url");
             String publicId = (String) uploadResult.get("public_id");
 
-            // ✅ Asignar en la entidad
             category.setCloudinaryData(secureUrl, publicId);
         }
 
@@ -60,9 +64,11 @@ public class CategoryService {
     }
 
     /**
-     * 🔄 Actualizar categoría (nombre e imagen)
+     * 🔄 Actualizar categoría
+     * 🧹 Limpia cache
      */
     @Transactional
+    @CacheEvict(value = "categories", allEntries = true)
     public Category updateCategory(Long id, String name, MultipartFile imageFile) throws IOException {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("❌ Categoría no encontrada con ID: " + id));
@@ -93,8 +99,10 @@ public class CategoryService {
 
     /**
      * ❌ Eliminar categoría
+     * 🧹 Limpia cache
      */
     @Transactional
+    @CacheEvict(value = "categories", allEntries = true)
     public boolean deleteCategory(Long id) {
         Optional<Category> categoryOpt = categoryRepository.findById(id);
         if (categoryOpt.isEmpty()) return false;
@@ -112,8 +120,10 @@ public class CategoryService {
 
     /**
      * 🧹 Eliminar categoría junto con productos
+     * 🧹 Limpia cache
      */
     @Transactional
+    @CacheEvict(value = "categories", allEntries = true)
     public boolean deleteCategoryWithProducts(Long id) {
         Optional<Category> categoryOpt = categoryRepository.findById(id);
         if (categoryOpt.isEmpty()) return false;
