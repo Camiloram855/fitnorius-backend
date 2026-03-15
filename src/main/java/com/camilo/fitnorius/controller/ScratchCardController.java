@@ -1,7 +1,9 @@
 package com.camilo.fitnorius.controller;
 
 import com.camilo.fitnorius.model.ScratchCardResult;
+import com.camilo.fitnorius.model.ScratchPrize;
 import com.camilo.fitnorius.repository.ScratchCardRepository;
+import com.camilo.fitnorius.repository.ScratchPrizeRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -9,30 +11,26 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 import java.util.*;
 
-/**
- * ScratchCardController
- *
- * Endpoints:
- *   GET  /api/scratch/check  → verifica si la IP ya jugó
- *   POST /api/scratch/play   → registra la jugada y devuelve el premio
- */
 @RestController
-@RequestMapping("/api/scratch")
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true") // Ajusta el origen de tu frontend
+@CrossOrigin(origins = "${FRONTEND_URL:http://localhost:5173}", allowCredentials = "true")
 public class ScratchCardController {
 
-    private final ScratchCardRepository repository;
+    private final ScratchCardRepository cardRepo;
+    private final ScratchPrizeRepository prizeRepo;
 
-    public ScratchCardController(ScratchCardRepository repository) {
-        this.repository = repository;
+    public ScratchCardController(ScratchCardRepository cardRepo, ScratchPrizeRepository prizeRepo) {
+        this.cardRepo = cardRepo;
+        this.prizeRepo = prizeRepo;
     }
 
-    // ── GET /api/scratch/check ────────────────────────────────────────────────
-    @GetMapping("/check")
+    // ════════════════════════════════════════════════════════════════════════
+    // PÚBLICOS — usados por el cliente en el checkout
+    // ════════════════════════════════════════════════════════════════════════
+
+    @GetMapping("/api/scratch/check")
     public ResponseEntity<Map<String, Object>> check(HttpServletRequest request) {
         String ip = getClientIP(request);
-        Optional<ScratchCardResult> existing = repository.findFirstByIpAddress(ip);
-
+        Optional<ScratchCardResult> existing = cardRepo.findFirstByIpAddress(ip);
         Map<String, Object> response = new HashMap<>();
         if (existing.isPresent()) {
             response.put("alreadyPlayed", true);
@@ -43,16 +41,13 @@ public class ScratchCardController {
         return ResponseEntity.ok(response);
     }
 
-    // ── POST /api/scratch/play ────────────────────────────────────────────────
-    @PostMapping("/play")
+    @PostMapping("/api/scratch/play")
     public ResponseEntity<Map<String, Object>> play(
             @RequestBody(required = false) Map<String, Object> body,
             HttpServletRequest request) {
 
         String ip = getClientIP(request);
-
-        // Verificar si ya jugó (protección doble, incluso si el frontend falla)
-        Optional<ScratchCardResult> existing = repository.findFirstByIpAddress(ip);
+        Optional<ScratchCardResult> existing = cardRepo.findFirstByIpAddress(ip);
         if (existing.isPresent()) {
             Map<String, Object> response = new HashMap<>();
             response.put("alreadyPlayed", true);
@@ -60,83 +55,112 @@ public class ScratchCardController {
             return ResponseEntity.ok(response);
         }
 
-        // Generar premio en el backend (nunca en el frontend)
-        Prize prize = generatePrize();
+        ScratchPrize prize = drawPrize();
 
-        // Guardar en base de datos
         ScratchCardResult result = new ScratchCardResult();
         result.setIpAddress(ip);
-        result.setPrizeType(prize.type());
-        result.setPrizeValue(prize.value());
-        result.setPrizeLabel(prize.label());
-        result.setPrizeEmoji(prize.emoji());
+        result.setPrizeType(prize.getType());
+        result.setPrizeValue(prize.getValue());
+        result.setPrizeLabel(prize.getLabel());
+        result.setPrizeEmoji(prize.getEmoji());
         result.setPlayedAt(LocalDateTime.now());
-
-        // userId opcional si tienes autenticación
-        if (body != null && body.containsKey("userId")) {
+        if (body != null && body.get("userId") != null)
             result.setUserId(body.get("userId").toString());
-        }
-
-        repository.save(result);
+        cardRepo.save(result);
 
         Map<String, Object> response = new HashMap<>();
         response.put("alreadyPlayed", false);
         response.put("prize", Map.of(
-                "type",  prize.type(),
-                "value", prize.value(),
-                "label", prize.label(),
-                "emoji", prize.emoji()
+                "type",  prize.getType(),
+                "value", prize.getValue(),
+                "label", prize.getLabel(),
+                "emoji", prize.getEmoji()
         ));
         return ResponseEntity.ok(response);
     }
 
-    // ─── Lógica de premios ────────────────────────────────────────────────────
-    private Prize generatePrize() {
-        // Tabla de premios con probabilidades (deben sumar 100)
-        // Ajusta los premios según tu negocio
-        List<PrizeEntry> prizes = List.of(
-                new PrizeEntry("percent", 10, "10% de descuento",   "🎉", 30),  // 30% prob
-                new PrizeEntry("percent", 15, "15% de descuento",   "🌟", 25),  // 25% prob
-                new PrizeEntry("fixed",  5000, "$5.000 de descuento","💰", 20),  // 20% prob
-                new PrizeEntry("percent",  5, "5% de descuento",    "🛍️", 15),  // 15% prob
-                new PrizeEntry("none",     0, "Sigue intentando",   "🍀", 10)   // 10% prob
-        );
+    // ════════════════════════════════════════════════════════════════════════
+    // ADMIN — gestión de premios y participaciones
+    // ════════════════════════════════════════════════════════════════════════
 
-        int roll = new Random().nextInt(100);  // número entre 0 y 99
-        int cumulative = 0;
-        for (PrizeEntry entry : prizes) {
-            cumulative += entry.probability();
-            if (roll < cumulative) {
-                return new Prize(entry.type(), entry.value(), entry.label(), entry.emoji());
-            }
-        }
-
-        // Fallback (nunca debería llegar aquí si las probabilidades suman 100)
-        return new Prize("none", 0, "Sigue intentando", "🍀");
+    @GetMapping("/api/admin/scratch/prizes")
+    public ResponseEntity<List<ScratchPrize>> getAllPrizes() {
+        return ResponseEntity.ok(prizeRepo.findAll());
     }
 
-    // ─── IP del cliente ───────────────────────────────────────────────────────
-    private String getClientIP(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            return xForwardedFor.split(",")[0].trim();
+    @PostMapping("/api/admin/scratch/prizes")
+    public ResponseEntity<ScratchPrize> createPrize(@RequestBody ScratchPrize prize) {
+        prize.setActive(true);
+        return ResponseEntity.ok(prizeRepo.save(prize));
+    }
+
+    @PutMapping("/api/admin/scratch/prizes/{id}")
+    public ResponseEntity<ScratchPrize> updatePrize(@PathVariable Long id,
+                                                     @RequestBody ScratchPrize data) {
+        return prizeRepo.findById(id).map(p -> {
+            p.setLabel(data.getLabel());
+            p.setEmoji(data.getEmoji());
+            p.setType(data.getType());
+            p.setValue(data.getValue());
+            p.setWeight(data.getWeight());
+            p.setActive(data.isActive());
+            return ResponseEntity.ok(prizeRepo.save(p));
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/api/admin/scratch/prizes/{id}")
+    public ResponseEntity<Void> deletePrize(@PathVariable Long id) {
+        if (!prizeRepo.existsById(id)) return ResponseEntity.notFound().build();
+        prizeRepo.deleteById(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/api/admin/scratch/results")
+    public ResponseEntity<List<ScratchCardResult>> getResults() {
+        return ResponseEntity.ok(cardRepo.findAll());
+    }
+
+    @DeleteMapping("/api/admin/scratch/results/ip")
+    public ResponseEntity<Map<String, String>> resetByIP(@RequestParam String ip) {
+        Optional<ScratchCardResult> result = cardRepo.findFirstByIpAddress(ip);
+        if (result.isEmpty())
+            return ResponseEntity.ok(Map.of("message", "No se encontró participación para esa IP."));
+        cardRepo.delete(result.get());
+        return ResponseEntity.ok(Map.of("message", "Participación de " + ip + " eliminada."));
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // HELPERS
+    // ════════════════════════════════════════════════════════════════════════
+
+    private ScratchPrize drawPrize() {
+        List<ScratchPrize> prizes = prizeRepo.findByActiveTrue();
+        if (prizes.isEmpty()) {
+            ScratchPrize fb = new ScratchPrize();
+            fb.setType("none"); fb.setValue(0);
+            fb.setLabel("Sin premio"); fb.setEmoji("🍀");
+            return fb;
         }
-        String xRealIP = request.getHeader("X-Real-IP");
-        if (xRealIP != null && !xRealIP.isEmpty()) return xRealIP;
+        int total = prizes.stream().mapToInt(ScratchPrize::getWeight).sum();
+        int roll  = new Random().nextInt(total);
+        int cum   = 0;
+        for (ScratchPrize p : prizes) {
+            cum += p.getWeight();
+            if (roll < cum) return p;
+        }
+        return prizes.get(prizes.size() - 1);
+    }
+
+    private String getClientIP(HttpServletRequest request) {
+        String xff = request.getHeader("X-Forwarded-For");
+        if (xff != null && !xff.isEmpty()) return xff.split(",")[0].trim();
+        String xri = request.getHeader("X-Real-IP");
+        if (xri != null && !xri.isEmpty()) return xri;
         return request.getRemoteAddr();
     }
 
-    // ─── Helper para construir el mapa de respuesta del premio ────────────────
     private Map<String, Object> buildPrizeMap(ScratchCardResult r) {
-        return Map.of(
-                "type",  r.getPrizeType(),
-                "value", r.getPrizeValue(),
-                "label", r.getPrizeLabel(),
-                "emoji", r.getPrizeEmoji()
-        );
+        return Map.of("type", r.getPrizeType(), "value", r.getPrizeValue(),
+                      "label", r.getPrizeLabel(), "emoji", r.getPrizeEmoji());
     }
-
-    // ─── Records internos ─────────────────────────────────────────────────────
-    record Prize(String type, double value, String label, String emoji) {}
-    record PrizeEntry(String type, double value, String label, String emoji, int probability) {}
 }
