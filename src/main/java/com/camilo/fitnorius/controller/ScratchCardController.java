@@ -1,8 +1,10 @@
 package com.camilo.fitnorius.controller;
 
 import com.camilo.fitnorius.model.ScratchCardResult;
+import com.camilo.fitnorius.model.ScratchConfig;
 import com.camilo.fitnorius.model.ScratchPrize;
 import com.camilo.fitnorius.repository.ScratchCardRepository;
+import com.camilo.fitnorius.repository.ScratchConfigRepository;
 import com.camilo.fitnorius.repository.ScratchPrizeRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
@@ -12,29 +14,61 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 @RestController
-@CrossOrigin(origins = "${FRONTEND_URL:http://localhost:5173}", allowCredentials = "true")
+@CrossOrigin(origins = {
+        "http://localhost:5173",
+        "https://fitnorius-gym.vercel.app"
+}, allowCredentials = "true")
 public class ScratchCardController {
 
-    private final ScratchCardRepository cardRepo;
-    private final ScratchPrizeRepository prizeRepo;
+    private static final int BLOCK_HOURS = 2;
 
-    public ScratchCardController(ScratchCardRepository cardRepo, ScratchPrizeRepository prizeRepo) {
-        this.cardRepo = cardRepo;
-        this.prizeRepo = prizeRepo;
+    private final ScratchCardRepository   cardRepo;
+    private final ScratchPrizeRepository  prizeRepo;
+    private final ScratchConfigRepository configRepo;
+
+    public ScratchCardController(ScratchCardRepository cardRepo,
+                                 ScratchPrizeRepository prizeRepo,
+                                 ScratchConfigRepository configRepo) {
+        this.cardRepo   = cardRepo;
+        this.prizeRepo  = prizeRepo;
+        this.configRepo = configRepo;
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // PÚBLICOS — usados por el cliente en el checkout
+    // PÚBLICOS
     // ════════════════════════════════════════════════════════════════════════
+
+    /** El frontend llama esto para saber si el raspa y gana está visible */
+    @GetMapping("/api/scratch/visible")
+    public ResponseEntity<Map<String, Object>> getVisible() {
+        Map<String, Object> res = new HashMap<>();
+        res.put("visible", getOrCreateConfig().isVisible());
+        return ResponseEntity.ok(res);
+    }
 
     @GetMapping("/api/scratch/check")
     public ResponseEntity<Map<String, Object>> check(HttpServletRequest request) {
+        Map<String, Object> response = new HashMap<>();
+
+        if (!getOrCreateConfig().isVisible()) {
+            response.put("visible", false);
+            return ResponseEntity.ok(response);
+        }
+        response.put("visible", true);
+
         String ip = getClientIP(request);
         Optional<ScratchCardResult> existing = cardRepo.findFirstByIpAddress(ip);
-        Map<String, Object> response = new HashMap<>();
+
         if (existing.isPresent()) {
-            response.put("alreadyPlayed", true);
-            response.put("prize", buildPrizeMap(existing.get()));
+            ScratchCardResult last = existing.get();
+            if (isBlockExpired(last)) {
+                cardRepo.delete(last);
+                response.put("alreadyPlayed", false);
+            } else {
+                response.put("alreadyPlayed", true);
+                response.put("prize", buildPrizeMap(last));
+                response.put("minutesLeft", minutesLeft(last));
+            }
         } else {
             response.put("alreadyPlayed", false);
         }
@@ -46,17 +80,29 @@ public class ScratchCardController {
             @RequestBody(required = false) Map<String, Object> body,
             HttpServletRequest request) {
 
-        String ip = getClientIP(request);
-        Optional<ScratchCardResult> existing = cardRepo.findFirstByIpAddress(ip);
-        if (existing.isPresent()) {
-            Map<String, Object> response = new HashMap<>();
-            response.put("alreadyPlayed", true);
-            response.put("prize", buildPrizeMap(existing.get()));
+        Map<String, Object> response = new HashMap<>();
+
+        if (!getOrCreateConfig().isVisible()) {
+            response.put("visible", false);
             return ResponseEntity.ok(response);
         }
 
-        ScratchPrize prize = drawPrize();
+        String ip = getClientIP(request);
+        Optional<ScratchCardResult> existing = cardRepo.findFirstByIpAddress(ip);
 
+        if (existing.isPresent()) {
+            ScratchCardResult last = existing.get();
+            if (isBlockExpired(last)) {
+                cardRepo.delete(last);
+            } else {
+                response.put("alreadyPlayed", true);
+                response.put("prize", buildPrizeMap(last));
+                response.put("minutesLeft", minutesLeft(last));
+                return ResponseEntity.ok(response);
+            }
+        }
+
+        ScratchPrize prize = drawPrize();
         ScratchCardResult result = new ScratchCardResult();
         result.setIpAddress(ip);
         result.setPrizeType(prize.getType());
@@ -68,7 +114,7 @@ public class ScratchCardController {
             result.setUserId(body.get("userId").toString());
         cardRepo.save(result);
 
-        Map<String, Object> response = new HashMap<>();
+        response.put("visible", true);
         response.put("alreadyPlayed", false);
         response.put("prize", Map.of(
                 "type",  prize.getType(),
@@ -80,7 +126,31 @@ public class ScratchCardController {
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // ADMIN — gestión de premios y participaciones
+    // ADMIN — visibilidad
+    // ════════════════════════════════════════════════════════════════════════
+
+    /** GET /api/admin/scratch/visible → lee el estado actual */
+    @GetMapping("/api/admin/scratch/visible")
+    public ResponseEntity<Map<String, Object>> getAdminVisible() {
+        Map<String, Object> res = new HashMap<>();
+        res.put("visible", getOrCreateConfig().isVisible());
+        return ResponseEntity.ok(res);
+    }
+
+    /** PUT /api/admin/scratch/visible → el admin cambia el estado */
+    @PutMapping("/api/admin/scratch/visible")
+    public ResponseEntity<Map<String, Object>> setVisible(@RequestBody Map<String, Object> body) {
+        boolean visible = Boolean.TRUE.equals(body.get("visible"));
+        ScratchConfig config = getOrCreateConfig();
+        config.setVisible(visible);
+        configRepo.save(config);
+        Map<String, Object> res = new HashMap<>();
+        res.put("visible", visible);
+        return ResponseEntity.ok(res);
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // ADMIN — premios
     // ════════════════════════════════════════════════════════════════════════
 
     @GetMapping("/api/admin/scratch/prizes")
@@ -95,15 +165,11 @@ public class ScratchCardController {
     }
 
     @PutMapping("/api/admin/scratch/prizes/{id}")
-    public ResponseEntity<ScratchPrize> updatePrize(@PathVariable Long id,
-                                                     @RequestBody ScratchPrize data) {
+    public ResponseEntity<ScratchPrize> updatePrize(@PathVariable Long id, @RequestBody ScratchPrize data) {
         return prizeRepo.findById(id).map(p -> {
-            p.setLabel(data.getLabel());
-            p.setEmoji(data.getEmoji());
-            p.setType(data.getType());
-            p.setValue(data.getValue());
-            p.setWeight(data.getWeight());
-            p.setActive(data.isActive());
+            p.setLabel(data.getLabel()); p.setEmoji(data.getEmoji());
+            p.setType(data.getType());   p.setValue(data.getValue());
+            p.setWeight(data.getWeight()); p.setActive(data.isActive());
             return ResponseEntity.ok(prizeRepo.save(p));
         }).orElse(ResponseEntity.notFound().build());
     }
@@ -114,6 +180,10 @@ public class ScratchCardController {
         prizeRepo.deleteById(id);
         return ResponseEntity.noContent().build();
     }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // ADMIN — participaciones
+    // ════════════════════════════════════════════════════════════════════════
 
     @GetMapping("/api/admin/scratch/results")
     public ResponseEntity<List<ScratchCardResult>> getResults() {
@@ -133,6 +203,24 @@ public class ScratchCardController {
     // HELPERS
     // ════════════════════════════════════════════════════════════════════════
 
+    private ScratchConfig getOrCreateConfig() {
+        return configRepo.findById(1L).orElseGet(() -> {
+            ScratchConfig c = new ScratchConfig();
+            c.setVisible(true);
+            return configRepo.save(c);
+        });
+    }
+
+    private boolean isBlockExpired(ScratchCardResult result) {
+        return result.getPlayedAt().plusHours(BLOCK_HOURS).isBefore(LocalDateTime.now());
+    }
+
+    private long minutesLeft(ScratchCardResult result) {
+        LocalDateTime unlocksAt = result.getPlayedAt().plusHours(BLOCK_HOURS);
+        long seconds = java.time.Duration.between(LocalDateTime.now(), unlocksAt).getSeconds();
+        return Math.max(0, (seconds / 60) + 1);
+    }
+
     private ScratchPrize drawPrize() {
         List<ScratchPrize> prizes = prizeRepo.findByActiveTrue();
         if (prizes.isEmpty()) {
@@ -144,10 +232,7 @@ public class ScratchCardController {
         int total = prizes.stream().mapToInt(ScratchPrize::getWeight).sum();
         int roll  = new Random().nextInt(total);
         int cum   = 0;
-        for (ScratchPrize p : prizes) {
-            cum += p.getWeight();
-            if (roll < cum) return p;
-        }
+        for (ScratchPrize p : prizes) { cum += p.getWeight(); if (roll < cum) return p; }
         return prizes.get(prizes.size() - 1);
     }
 
@@ -161,6 +246,6 @@ public class ScratchCardController {
 
     private Map<String, Object> buildPrizeMap(ScratchCardResult r) {
         return Map.of("type", r.getPrizeType(), "value", r.getPrizeValue(),
-                      "label", r.getPrizeLabel(), "emoji", r.getPrizeEmoji());
+                "label", r.getPrizeLabel(), "emoji", r.getPrizeEmoji());
     }
 }
