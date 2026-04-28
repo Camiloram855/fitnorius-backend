@@ -7,6 +7,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/banner")
 @CrossOrigin(origins = {
@@ -24,6 +26,11 @@ public class BannerController {
     public ResponseEntity<Banner> getBanner() {
         Banner banner = bannerService.getCurrentBanner();
         return ResponseEntity.ok(banner);
+    }
+
+    @GetMapping("/all")
+    public ResponseEntity<List<Banner>> getAllBanners() {
+        return ResponseEntity.ok(bannerService.getAllBanners());
     }
 
     @PostMapping("/upload")

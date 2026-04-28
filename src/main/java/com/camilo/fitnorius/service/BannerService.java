@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -19,7 +21,6 @@ public class BannerService {
     @Autowired
     private BannerRepository bannerRepository;
 
-    // 🔹 Variables desde application.properties
     @Value("${cloudinary.cloud_name}")
     private String cloudName;
 
@@ -29,41 +30,49 @@ public class BannerService {
     @Value("${cloudinary.api_secret}")
     private String apiSecret;
 
-    // 🔹 Obtener el banner actual
+    // Compatibilidad con cliente existente
     public Banner getCurrentBanner() {
         Optional<Banner> banner = bannerRepository.findAll().stream().findFirst();
         return banner.orElse(new Banner("https://res.cloudinary.com/" + cloudName + "/image/upload/v1720000000/default-banner.png"));
     }
 
-    // 🔹 Subir el banner a Cloudinary
+    // Lista completa para carrusel
+    public List<Banner> getAllBanners() {
+        List<Banner> banners = bannerRepository.findAll();
+        if (banners.isEmpty()) {
+            return Collections.singletonList(
+                    new Banner("https://res.cloudinary.com/" + cloudName + "/image/upload/v1720000000/default-banner.png")
+            );
+        }
+        return banners;
+    }
+
+    // Sube una nueva imagen a Cloudinary y la guarda como slide
     public Banner saveBanner(MultipartFile file) {
         try {
-            // Crear instancia de Cloudinary
             Cloudinary cloudinary = new Cloudinary(ObjectUtils.asMap(
                     "cloud_name", cloudName,
                     "api_key", apiKey,
                     "api_secret", apiSecret
             ));
 
-            // 📤 Subir imagen
             Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap(
-                    "folder", "fitnorius/banner/"
+                    "folder", "fitnorius/banner/",
+                    "transformation", "c_fill,g_auto,w_1920,h_720"
             ));
 
             String imageUrl = uploadResult.get("secure_url").toString();
 
-            // Guardar o actualizar el banner en la base de datos
-            Banner banner = getCurrentBanner();
+            Banner banner = new Banner();
             banner.setImageUrl(imageUrl);
             bannerRepository.save(banner);
 
             return banner;
         } catch (IOException e) {
-            throw new RuntimeException("❌ Error al subir el banner a Cloudinary", e);
+            throw new RuntimeException("Error al subir el banner a Cloudinary", e);
         }
     }
 
-    // 🔹 Restablecer el banner
     public void resetBanner() {
         bannerRepository.deleteAll();
     }
