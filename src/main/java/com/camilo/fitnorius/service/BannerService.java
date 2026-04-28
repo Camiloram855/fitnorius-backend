@@ -58,7 +58,7 @@ public class BannerService {
 
             Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap(
                     "folder", "fitnorius/banner/",
-                    "transformation", "c_fill,g_auto,w_1920,h_720"
+                    "transformation", "c_fit,w_1920,h_720"
             ));
 
             String imageUrl = uploadResult.get("secure_url").toString();
