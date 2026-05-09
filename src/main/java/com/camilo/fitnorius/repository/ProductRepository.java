@@ -13,7 +13,7 @@ import java.util.List;
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
     // ✅ Buscar productos por categoría
-    List<Product> findByCategoryId(Long categoryId);
+    List<Product> findByCategoryIdOrderByDisplayOrderAscIdAsc(Long categoryId);
 
     // ✅ Eliminar todos los productos por categoría
     void deleteByCategoryId(Long categoryId);
@@ -30,4 +30,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             @Param("minPrice") BigDecimal minPrice,
             @Param("maxPrice") BigDecimal maxPrice
     );
+
+    List<Product> findAllByOrderByDisplayOrderAscIdAsc();
+
+    @Query("SELECT COALESCE(MAX(p.displayOrder), -1) FROM Product p")
+    Integer findMaxDisplayOrder();
 }

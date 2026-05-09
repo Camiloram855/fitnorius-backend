@@ -44,6 +44,9 @@ public class Product {
     @Column(nullable = false)
     private boolean agotado = false;
 
+    @Column(name = "display_order", nullable = false)
+    private Integer displayOrder = 0;
+
     // 🔗 Relación con Category
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)

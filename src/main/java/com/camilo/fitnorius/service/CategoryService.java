@@ -26,17 +26,17 @@ public class CategoryService {
     private final Cloudinary cloudinary;
 
     /**
-     * 📦 Obtener todas las categorías (CACHEADO)
+     * ðŸ“¦ Obtener todas las categorÃ­as (CACHEADO)
      */
     @Cacheable(value = "categories")
     public List<Category> getAllCategories() {
-        System.out.println("📦 Categorías desde BD");
+        System.out.println("ðŸ“¦ CategorÃ­as desde BD");
         return categoryRepository.findAll();
     }
 
     /**
-     * 🆕 Crear categoría con subida a Cloudinary
-     * 🧹 Limpia cache
+     * ðŸ†• Crear categorÃ­a con subida a Cloudinary
+     * ðŸ§¹ Limpia cache
      */
     @CacheEvict(value = "categories", allEntries = true)
     public Category createCategory(String name, MultipartFile imageFile) throws IOException {
@@ -52,7 +52,7 @@ public class CategoryService {
                     )
             );
 
-            System.out.println("📸 Resultado Cloudinary (Category): " + uploadResult);
+            System.out.println("ðŸ“¸ Resultado Cloudinary (Category): " + uploadResult);
 
             String secureUrl = (String) uploadResult.get("secure_url");
             String publicId = (String) uploadResult.get("public_id");
@@ -64,14 +64,14 @@ public class CategoryService {
     }
 
     /**
-     * 🔄 Actualizar categoría
-     * 🧹 Limpia cache
+     * ðŸ”„ Actualizar categorÃ­a
+     * ðŸ§¹ Limpia cache
      */
     @Transactional
     @CacheEvict(value = "categories", allEntries = true)
     public Category updateCategory(Long id, String name, MultipartFile imageFile) throws IOException {
         Category category = categoryRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("❌ Categoría no encontrada con ID: " + id));
+                .orElseThrow(() -> new RuntimeException("âŒ CategorÃ­a no encontrada con ID: " + id));
 
         category.setName(name);
 
@@ -86,7 +86,7 @@ public class CategoryService {
                     )
             );
 
-            System.out.println("📸 Resultado Cloudinary (Update): " + uploadResult);
+            System.out.println("ðŸ“¸ Resultado Cloudinary (Update): " + uploadResult);
 
             String secureUrl = (String) uploadResult.get("secure_url");
             String publicId = (String) uploadResult.get("public_id");
@@ -98,8 +98,8 @@ public class CategoryService {
     }
 
     /**
-     * ❌ Eliminar categoría
-     * 🧹 Limpia cache
+     * âŒ Eliminar categorÃ­a
+     * ðŸ§¹ Limpia cache
      */
     @Transactional
     @CacheEvict(value = "categories", allEntries = true)
@@ -109,8 +109,8 @@ public class CategoryService {
 
         Category category = categoryOpt.get();
 
-        if (!productRepository.findByCategoryId(id).isEmpty()) {
-            throw new IllegalStateException("⚠️ No se puede eliminar la categoría porque tiene productos asociados.");
+        if (!productRepository.findByCategoryIdOrderByDisplayOrderAscIdAsc(id).isEmpty()) {
+            throw new IllegalStateException("âš ï¸ No se puede eliminar la categorÃ­a porque tiene productos asociados.");
         }
 
         deleteCategoryImage(category);
@@ -119,8 +119,8 @@ public class CategoryService {
     }
 
     /**
-     * 🧹 Eliminar categoría junto con productos
-     * 🧹 Limpia cache
+     * ðŸ§¹ Eliminar categorÃ­a junto con productos
+     * ðŸ§¹ Limpia cache
      */
     @Transactional
     @CacheEvict(value = "categories", allEntries = true)
@@ -136,16 +136,17 @@ public class CategoryService {
     }
 
     /**
-     * 🗑️ Eliminar imagen de Cloudinary
+     * ðŸ—‘ï¸ Eliminar imagen de Cloudinary
      */
     private void deleteCategoryImage(Category category) {
         try {
             if (category.getCloudinaryPublicId() != null) {
                 cloudinary.uploader().destroy(category.getCloudinaryPublicId(), ObjectUtils.emptyMap());
-                System.out.println("🗑️ Imagen eliminada de Cloudinary: " + category.getCloudinaryPublicId());
+                System.out.println("ðŸ—‘ï¸ Imagen eliminada de Cloudinary: " + category.getCloudinaryPublicId());
             }
         } catch (Exception e) {
-            System.err.println("⚠️ Error eliminando imagen de Cloudinary: " + e.getMessage());
+            System.err.println("âš ï¸ Error eliminando imagen de Cloudinary: " + e.getMessage());
         }
     }
 }
+

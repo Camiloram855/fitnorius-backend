@@ -1,6 +1,7 @@
 package com.camilo.fitnorius.controller;
 
 import com.camilo.fitnorius.dto.ProductDTO;
+import com.camilo.fitnorius.dto.ProductReorderRequest;
 import com.camilo.fitnorius.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -147,6 +148,13 @@ public class ProductController {
         ProductDTO updated = productService.setAgotado(id, estado);
         return ResponseEntity.ok(updated);
     }
-//miplementacion aplicada para git
+
+    @PutMapping("/reorder")
+    public ResponseEntity<Map<String, String>> reorderProducts(@RequestBody ProductReorderRequest request) {
+        productService.reorderProducts(request.getOrderedIds());
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Orden de productos actualizado correctamente");
+        return ResponseEntity.ok(response);
+    }
 
 }

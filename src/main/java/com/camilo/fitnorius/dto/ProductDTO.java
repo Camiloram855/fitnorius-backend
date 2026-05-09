@@ -2,6 +2,7 @@ package com.camilo.fitnorius.dto;
 
 import com.camilo.fitnorius.model.Image;
 import lombok.*;
+
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -24,7 +25,9 @@ public class ProductDTO {
 
     private String description;
 
-    private boolean agotado;  // ← FALTABA ESTO
+    private boolean agotado;
+
+    private Integer displayOrder;
 
     private List<Image> images;
 }
