@@ -44,4 +44,10 @@ public class BannerController {
         bannerService.resetBanner();
         return ResponseEntity.ok("Banner restablecido correctamente");
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> deleteBannerById(@PathVariable Long id) {
+        bannerService.deleteBannerById(id);
+        return ResponseEntity.ok("Imagen del banner eliminada correctamente");
+    }
 }

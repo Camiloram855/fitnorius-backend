@@ -76,4 +76,11 @@ public class BannerService {
     public void resetBanner() {
         bannerRepository.deleteAll();
     }
+
+    public void deleteBannerById(Long id) {
+        if (!bannerRepository.existsById(id)) {
+            throw new RuntimeException("Banner no encontrado con ID: " + id);
+        }
+        bannerRepository.deleteById(id);
+    }
 }
