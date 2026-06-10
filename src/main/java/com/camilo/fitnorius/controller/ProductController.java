@@ -149,6 +149,7 @@ public class ProductController {
         return ResponseEntity.ok(updated);
     }
 
+    // Guarda el orden final del catálogo para que persista al recargar.
     @PutMapping("/reorder")
     public ResponseEntity<Map<String, String>> reorderProducts(@RequestBody ProductReorderRequest request) {
         productService.reorderProducts(request.getOrderedIds());

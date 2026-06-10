@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -163,20 +164,20 @@ public class ProductService {
 
         List<Product> currentOrdered = productRepository.findAllByOrderByDisplayOrderAscIdAsc();
         List<Product> reordered = new ArrayList<>(currentOrdered.size());
-
-        for (Long productId : orderedProductIds) {
-            currentOrdered.stream()
-                    .filter(p -> p.getId().equals(productId))
-                    .findFirst()
-                    .ifPresent(reordered::add);
-        }
+        Map<Long, Product> byId = new HashMap<>(currentOrdered.size());
 
         for (Product product : currentOrdered) {
-            boolean alreadyIncluded = reordered.stream().anyMatch(p -> p.getId().equals(product.getId()));
-            if (!alreadyIncluded) {
+            byId.put(product.getId(), product);
+        }
+
+        for (Long productId : orderedProductIds) {
+            Product product = byId.remove(productId);
+            if (product != null) {
                 reordered.add(product);
             }
         }
+
+        reordered.addAll(byId.values());
 
         for (int i = 0; i < reordered.size(); i++) {
             reordered.get(i).setDisplayOrder(i);

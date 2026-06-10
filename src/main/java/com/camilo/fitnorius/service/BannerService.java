@@ -77,6 +77,7 @@ public class BannerService {
         bannerRepository.deleteAll();
     }
 
+    // Borra una sola imagen del carrusel sin afectar las demás.
     public void deleteBannerById(Long id) {
         if (!bannerRepository.existsById(id)) {
             throw new RuntimeException("Banner no encontrado con ID: " + id);

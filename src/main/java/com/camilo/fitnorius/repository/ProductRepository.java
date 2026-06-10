@@ -31,8 +31,10 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             @Param("maxPrice") BigDecimal maxPrice
     );
 
+    // Usa displayOrder como fuente oficial del orden visible del catálogo.
     List<Product> findAllByOrderByDisplayOrderAscIdAsc();
 
+    // Nuevo producto se inserta al final del orden actual.
     @Query("SELECT COALESCE(MAX(p.displayOrder), -1) FROM Product p")
     Integer findMaxDisplayOrder();
 }

@@ -44,6 +44,7 @@ public class Product {
     @Column(nullable = false)
     private boolean agotado = false;
 
+    // Orden visible del producto dentro del catálogo.
     @Column(name = "display_order", nullable = false)
     private Integer displayOrder = 0;
 

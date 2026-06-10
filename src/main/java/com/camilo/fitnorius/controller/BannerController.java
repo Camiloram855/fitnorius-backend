@@ -45,6 +45,7 @@ public class BannerController {
         return ResponseEntity.ok("Banner restablecido correctamente");
     }
 
+    // Endpoint puntual para eliminar una sola imagen del banner.
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteBannerById(@PathVariable Long id) {
         bannerService.deleteBannerById(id);
