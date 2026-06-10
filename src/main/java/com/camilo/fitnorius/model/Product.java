@@ -47,7 +47,7 @@ public class Product {
     @Column(name = "display_order", nullable = false)
     private Integer displayOrder = 0;
 
-    // 🔗 Relación con Category
+    // 🔗 Relación con Category aca
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
     @ToString.Exclude
