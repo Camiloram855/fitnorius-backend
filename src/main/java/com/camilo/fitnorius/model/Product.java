@@ -41,6 +41,9 @@ public class Product {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "highlights_json", columnDefinition = "TEXT")
+    private String highlightsJson;
+
     @Column(nullable = false)
     private boolean agotado = false;
 

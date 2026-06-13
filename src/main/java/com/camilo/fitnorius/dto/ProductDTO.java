@@ -24,6 +24,7 @@ public class ProductDTO {
     private String categoryName;
 
     private String description;
+    private List<ProductHighlightDTO> highlights;
 
     private boolean agotado;
 

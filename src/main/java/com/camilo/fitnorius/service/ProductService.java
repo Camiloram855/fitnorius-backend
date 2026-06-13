@@ -1,6 +1,7 @@
 package com.camilo.fitnorius.service;
 
 import com.camilo.fitnorius.dto.ProductDTO;
+import com.camilo.fitnorius.dto.ProductHighlightDTO;
 import com.camilo.fitnorius.model.Category;
 import com.camilo.fitnorius.model.Image;
 import com.camilo.fitnorius.model.Product;
@@ -30,6 +31,7 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final ImageService imageService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${cloudinary.cloud_name}")
     private String cloudName;
@@ -50,6 +52,7 @@ public class ProductService {
                 .oldPrice(request.getOldPrice())
                 .discount(request.getDiscount())
                 .description(request.getDescription())
+                .highlightsJson(serializeHighlights(request.getHighlights()))
                 .displayOrder(nextDisplayOrder())
                 .category(category)
                 .build();
@@ -75,6 +78,7 @@ public class ProductService {
         product.setOldPrice(request.getOldPrice());
         product.setDiscount(request.getDiscount());
         product.setDescription(request.getDescription());
+        product.setHighlightsJson(serializeHighlights(request.getHighlights()));
 
         if (request.getCategoryId() != null) {
             Category category = categoryRepository.findById(request.getCategoryId())
@@ -92,6 +96,15 @@ public class ProductService {
             }
         }
 
+        Product updatedProduct = productRepository.save(product);
+        return mapToDTO(updatedProduct);
+    }
+
+    public ProductDTO updateProductHighlights(Long id, List<ProductHighlightDTO> highlights) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + id));
+
+        product.setHighlightsJson(serializeHighlights(highlights));
         Product updatedProduct = productRepository.save(product);
         return mapToDTO(updatedProduct);
     }
@@ -209,6 +222,7 @@ public class ProductService {
                 .oldPrice(product.getOldPrice())
                 .discount(product.getDiscount())
                 .description(product.getDescription())
+                .highlights(deserializeHighlights(product.getHighlightsJson()))
                 .imageUrl(product.getImageUrl())
                 .categoryId(product.getCategory().getId())
                 .categoryName(product.getCategory().getName())
@@ -230,5 +244,41 @@ public class ProductService {
     private int nextDisplayOrder() {
         Integer max = productRepository.findMaxDisplayOrder();
         return (max == null ? -1 : max) + 1;
+    }
+
+    private String serializeHighlights(List<ProductHighlightDTO> highlights) {
+        if (highlights == null || highlights.isEmpty()) {
+            return null;
+        }
+
+        try {
+            List<ProductHighlightDTO> cleaned = highlights.stream()
+                    .filter(item -> item != null && item.getText() != null && !item.getText().trim().isEmpty())
+                    .map(item -> ProductHighlightDTO.builder()
+                            .icon(item.getIcon() == null || item.getIcon().isBlank() ? "shield" : item.getIcon())
+                            .text(item.getText().trim())
+                            .build())
+                    .toList();
+
+            if (cleaned.isEmpty()) {
+                return null;
+            }
+
+            return objectMapper.writeValueAsString(cleaned);
+        } catch (Exception e) {
+            throw new RuntimeException("Error serializando highlights", e);
+        }
+    }
+
+    private List<ProductHighlightDTO> deserializeHighlights(String highlightsJson) {
+        if (highlightsJson == null || highlightsJson.isBlank()) {
+            return List.of();
+        }
+
+        try {
+            return objectMapper.readValue(highlightsJson, new TypeReference<List<ProductHighlightDTO>>() {});
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 }

@@ -1,6 +1,7 @@
 package com.camilo.fitnorius.controller;
 
 import com.camilo.fitnorius.dto.ProductDTO;
+import com.camilo.fitnorius.dto.ProductHighlightDTO;
 import com.camilo.fitnorius.dto.ProductReorderRequest;
 import com.camilo.fitnorius.service.ProductService;
 import lombok.RequiredArgsConstructor;
@@ -123,6 +124,14 @@ public class ProductController {
             @RequestBody ProductDTO request
     ) {
         return ResponseEntity.ok(productService.updateProduct(id, request, null));
+    }
+
+    @PutMapping(value = "/{id}/highlights", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ProductDTO> updateProductHighlights(
+            @PathVariable Long id,
+            @RequestBody List<ProductHighlightDTO> highlights
+    ) {
+        return ResponseEntity.ok(productService.updateProductHighlights(id, highlights));
     }
 
     // 🗑️ Eliminar producto
