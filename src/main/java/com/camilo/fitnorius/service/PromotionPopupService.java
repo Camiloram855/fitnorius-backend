@@ -6,7 +6,10 @@ import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -32,19 +35,18 @@ public class PromotionPopupService {
         return repository.findFirstByOrderByIdAsc().orElse(null);
     }
 
+    @Transactional
     public PromotionPopup savePopup(MultipartFile file, boolean active) {
         try {
             Optional<PromotionPopup> existingOptional = repository.findFirstByOrderByIdAsc();
             PromotionPopup popup = existingOptional.orElseGet(PromotionPopup::new);
 
             if ((file == null || file.isEmpty()) && (popup.getImageUrl() == null || popup.getImageUrl().isBlank())) {
-                throw new RuntimeException("Debes subir una imagen para crear el popup promocional");
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Debes subir una imagen para crear el popup promocional");
             }
 
             if (file != null && !file.isEmpty()) {
-                if (popup.getPublicId() != null && !popup.getPublicId().isBlank()) {
-                    deleteFromCloudinary(popup.getPublicId());
-                }
+                String previousPublicId = popup.getPublicId();
 
                 Cloudinary cloudinary = buildCloudinary();
                 Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap(
@@ -54,30 +56,40 @@ public class PromotionPopupService {
 
                 popup.setImageUrl(uploadResult.get("secure_url").toString());
                 popup.setPublicId(uploadResult.get("public_id").toString());
+
+                if (previousPublicId != null && !previousPublicId.isBlank()) {
+                    try {
+                        deleteFromCloudinary(previousPublicId);
+                    } catch (IOException ignored) {
+                        // No interrumpimos el guardado si falla la limpieza del archivo anterior.
+                    }
+                }
             }
 
             popup.setActive(active);
             return repository.save(popup);
         } catch (IOException e) {
-            throw new RuntimeException("Error al guardar el popup promocional", e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Error al guardar el popup promocional", e);
         }
     }
 
+    @Transactional
     public PromotionPopup updateVisibility(boolean active) {
         PromotionPopup popup = repository.findFirstByOrderByIdAsc().orElseThrow(
-                () -> new RuntimeException("No existe un popup promocional para actualizar")
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No existe un popup promocional para actualizar")
         );
         popup.setActive(active);
         return repository.save(popup);
     }
 
+    @Transactional
     public void deletePopup() {
         repository.findFirstByOrderByIdAsc().ifPresent(popup -> {
             if (popup.getPublicId() != null && !popup.getPublicId().isBlank()) {
                 try {
                     deleteFromCloudinary(popup.getPublicId());
                 } catch (IOException e) {
-                    throw new RuntimeException("Error al eliminar la imagen del popup", e);
+                    throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Error al eliminar la imagen del popup", e);
                 }
             }
             repository.delete(popup);
