@@ -51,7 +51,7 @@ public class PromotionPopupService {
                 Cloudinary cloudinary = buildCloudinary();
                 Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap(
                         "folder", "fitnorius/promotion-popup/",
-                        "transformation", "c_fill,w_1200,h_1200,q_auto,f_auto"
+                        "transformation", "c_limit,w_1600,q_auto,f_auto"
                 ));
 
                 popup.setImageUrl(uploadResult.get("secure_url").toString());
