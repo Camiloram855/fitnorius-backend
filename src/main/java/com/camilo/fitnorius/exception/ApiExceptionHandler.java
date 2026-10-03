@@ -54,6 +54,15 @@ public class ApiExceptionHandler {
     public ResponseEntity<ApiErrorResponse> imageStorage(ImageStorageException exception) {
         log.error("Fallo al guardar la imagen: {} - {}",
                 exception.getClass().getName(), exception.getMessage(), exception);
+
+        // La causa raiz es la que dice si fue Cloudinary, la validacion o la red.
+        Throwable root = exception;
+        while (root.getCause() != null && root.getCause() != root) {
+            root = root.getCause();
+        }
+        log.error("Causa raiz del fallo de imagen: {} - {}",
+                root.getClass().getName(), root.getMessage());
+
         return error(HttpStatus.BAD_GATEWAY,
                 "No se pudo subir la imagen. El almacenamiento de imágenes no está "
                         + "configurado o rechazó el archivo.");

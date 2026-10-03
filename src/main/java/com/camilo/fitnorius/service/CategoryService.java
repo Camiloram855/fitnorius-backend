@@ -8,6 +8,7 @@ import com.camilo.fitnorius.security.ImageUploadValidator;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,7 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class CategoryService {
 
     private final CategoryRepository categoryRepository;
@@ -57,8 +59,11 @@ public class CategoryService {
                         )
                 );
             } catch (IOException | RuntimeException exception) {
-                // Se distingue del error generico para que el administrador
-                // reciba un mensaje que diga que revisar.
+                // El mensaje de Cloudinary (por ejemplo "cloud_name mismatch")
+                // vive en la causa raiz. Se registra aqui porque es el unico
+                // punto donde se conserva y explica el motivo real del fallo.
+                log.error("Cloudinary rechazó la imagen de la categoría '{}': {}",
+                        name, exception.getMessage());
                 throw new ImageStorageException(
                         "No se pudo subir la imagen de la categoría", exception);
             }
