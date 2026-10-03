@@ -1,5 +1,6 @@
 package com.camilo.fitnorius.service;
 
+import com.camilo.fitnorius.exception.ImageStorageException;
 import com.camilo.fitnorius.model.Category;
 import com.camilo.fitnorius.repository.CategoryRepository;
 import com.camilo.fitnorius.repository.ProductRepository;
@@ -46,13 +47,21 @@ public class CategoryService {
 
         if (imageFile != null && !imageFile.isEmpty()) {
             ImageUploadValidator.validate(imageFile);
-            Map uploadResult = cloudinary.uploader().upload(
-                    imageFile.getBytes(),
-                    ObjectUtils.asMap(
-                            "folder", "fitnorius/categories",
-                            "resource_type", "image"
-                    )
-            );
+            Map uploadResult;
+            try {
+                uploadResult = cloudinary.uploader().upload(
+                        imageFile.getBytes(),
+                        ObjectUtils.asMap(
+                                "folder", "fitnorius/categories",
+                                "resource_type", "image"
+                        )
+                );
+            } catch (IOException | RuntimeException exception) {
+                // Se distingue del error generico para que el administrador
+                // reciba un mensaje que diga que revisar.
+                throw new ImageStorageException(
+                        "No se pudo subir la imagen de la categoría", exception);
+            }
 
             String secureUrl = (String) uploadResult.get("secure_url");
             String publicId = (String) uploadResult.get("public_id");
