@@ -1,0 +1,10 @@
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+src/main/resources/application-local.properties
+uploads
+headerMessages.json
+target
+*.log

@@ -6,18 +6,16 @@ import com.camilo.fitnorius.model.ScratchPrize;
 import com.camilo.fitnorius.repository.ScratchCardRepository;
 import com.camilo.fitnorius.repository.ScratchConfigRepository;
 import com.camilo.fitnorius.repository.ScratchPrizeRepository;
+import com.camilo.fitnorius.security.ClientIpResolver;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.*;
 
 @RestController
-@CrossOrigin(origins = {
-        "http://localhost:5173",
-        "https://fitnorius-gym.vercel.app"
-}, allowCredentials = "true")
 public class ScratchCardController {
 
     private static final int BLOCK_HOURS = 2;
@@ -25,13 +23,17 @@ public class ScratchCardController {
     private final ScratchCardRepository   cardRepo;
     private final ScratchPrizeRepository  prizeRepo;
     private final ScratchConfigRepository configRepo;
+    private final ClientIpResolver        clientIpResolver;
+    private final SecureRandom            secureRandom = new SecureRandom();
 
     public ScratchCardController(ScratchCardRepository cardRepo,
                                  ScratchPrizeRepository prizeRepo,
-                                 ScratchConfigRepository configRepo) {
+                                 ScratchConfigRepository configRepo,
+                                 ClientIpResolver clientIpResolver) {
         this.cardRepo   = cardRepo;
         this.prizeRepo  = prizeRepo;
         this.configRepo = configRepo;
+        this.clientIpResolver = clientIpResolver;
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -56,7 +58,7 @@ public class ScratchCardController {
         }
         response.put("visible", true);
 
-        String ip = getClientIP(request);
+        String ip = clientIpResolver.resolve(request);
         Optional<ScratchCardResult> existing = cardRepo.findFirstByIpAddress(ip);
 
         if (existing.isPresent()) {
@@ -76,9 +78,7 @@ public class ScratchCardController {
     }
 
     @PostMapping("/api/scratch/play")
-    public ResponseEntity<Map<String, Object>> play(
-            @RequestBody(required = false) Map<String, Object> body,
-            HttpServletRequest request) {
+    public ResponseEntity<Map<String, Object>> play(HttpServletRequest request) {
 
         Map<String, Object> response = new HashMap<>();
 
@@ -87,7 +87,7 @@ public class ScratchCardController {
             return ResponseEntity.ok(response);
         }
 
-        String ip = getClientIP(request);
+        String ip = clientIpResolver.resolve(request);
         Optional<ScratchCardResult> existing = cardRepo.findFirstByIpAddress(ip);
 
         if (existing.isPresent()) {
@@ -110,8 +110,9 @@ public class ScratchCardController {
         result.setPrizeLabel(prize.getLabel());
         result.setPrizeEmoji(prize.getEmoji());
         result.setPlayedAt(LocalDateTime.now());
-        if (body != null && body.get("userId") != null)
-            result.setUserId(body.get("userId").toString());
+        // El endpoint es público: no se acepta una identidad de usuario
+        // proporcionada por el cliente. Si se agrega autenticación de clientes,
+        // el userId debe salir del token validado, nunca del body.
         cardRepo.save(result);
 
         response.put("visible", true);
@@ -222,7 +223,9 @@ public class ScratchCardController {
     }
 
     private ScratchPrize drawPrize() {
-        List<ScratchPrize> prizes = prizeRepo.findByActiveTrue();
+        List<ScratchPrize> prizes = prizeRepo.findByActiveTrue().stream()
+                .filter(prize -> prize.getWeight() > 0)
+                .toList();
         if (prizes.isEmpty()) {
             ScratchPrize fb = new ScratchPrize();
             fb.setType("none"); fb.setValue(0);
@@ -230,18 +233,15 @@ public class ScratchCardController {
             return fb;
         }
         int total = prizes.stream().mapToInt(ScratchPrize::getWeight).sum();
-        int roll  = new Random().nextInt(total);
+        int roll  = secureRandom.nextInt(total);
         int cum   = 0;
-        for (ScratchPrize p : prizes) { cum += p.getWeight(); if (roll < cum) return p; }
+        for (ScratchPrize p : prizes) {
+            cum += p.getWeight();
+            if (roll < cum) {
+                return p;
+            }
+        }
         return prizes.get(prizes.size() - 1);
-    }
-
-    private String getClientIP(HttpServletRequest request) {
-        String xff = request.getHeader("X-Forwarded-For");
-        if (xff != null && !xff.isEmpty()) return xff.split(",")[0].trim();
-        String xri = request.getHeader("X-Real-IP");
-        if (xri != null && !xri.isEmpty()) return xri;
-        return request.getRemoteAddr();
     }
 
     private Map<String, Object> buildPrizeMap(ScratchCardResult r) {

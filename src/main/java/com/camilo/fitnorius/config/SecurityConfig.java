@@ -1,72 +1,148 @@
 package com.camilo.fitnorius.config;
 
+import com.camilo.fitnorius.security.JsonAccessDeniedHandler;
+import com.camilo.fitnorius.security.JsonAuthenticationEntryPoint;
+import com.camilo.fitnorius.security.JwtAuthenticationFilter;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.util.StringUtils;
 
-import java.util.Arrays;
+import java.net.URI;
 import java.util.List;
 
 @Configuration
+@EnableWebSecurity
+@EnableMethodSecurity
+@EnableConfigurationProperties(SecurityProperties.class)
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public PasswordEncoder passwordEncoder() {
+        // BCrypt con coste 12: resiste ataques offline sin bloquear el login.
+        return new BCryptPasswordEncoder(12);
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            CorsConfigurationSource corsConfigurationSource,
+            JwtAuthenticationFilter jwtAuthenticationFilter,
+            JsonAuthenticationEntryPoint authenticationEntryPoint,
+            JsonAccessDeniedHandler accessDeniedHandler) throws Exception {
         http
-                // 🔒 Desactiva CSRF y habilita CORS
-                .csrf(csrf -> csrf.disable())
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .requestCache(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
+                .formLogin(AbstractHttpConfigurer::disable)
+                .logout(AbstractHttpConfigurer::disable)
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
-                        // ✅ Permite acceso libre a tus endpoints públicos
-                        .requestMatchers(
-                                "/actuator/**",
-                                "/api/**",
-                                "/uploads/**",
-                                "/**"
-                        ).permitAll()
-                        .anyRequest().permitAll()
-                )
-                // 🔧 Permite iframes (para H2-console u otros)
-                .headers( headers -> headers.frameOptions(frame -> frame.disable()));
+                        .requestMatchers("/error", "/actuator/health").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
+                        .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/logout",
+                                "/api/auth/password-policy").permitAll()
+                        .requestMatchers("/api/auth/me").authenticated()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/images-cloud/**").hasRole("ADMIN")
+                        // Solo estas lecturas de catálogo son públicas. Un GET
+                        // nuevo no se expone por olvidar una regla de seguridad.
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/categories",
+                                "/api/products",
+                                "/api/products/category/**",
+                                "/api/products/search",
+                                "/api/products/{id}",
+                                "/api/productos",
+                                "/api/banner",
+                                "/api/banner/all",
+                                "/api/promotion-popup",
+                                "/api/promo-banner",
+                                "/api/images/product",
+                                "/api/images/category",
+                                "/api/scratch/visible",
+                                "/api/scratch/check")
+                        .permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/ordenes", "/api/scratch/play").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/header-messages").permitAll()
+                        .requestMatchers(HttpMethod.PUT, "/header-messages").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/api/**", "/header-messages").hasRole("ADMIN")
+                        .anyRequest().denyAll())
+                .headers(headers -> headers
+                        .contentSecurityPolicy(csp -> csp.policyDirectives(
+                                "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"))
+                        .frameOptions(frame -> frame.deny())
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .maxAgeInSeconds(31536000))
+                        .referrerPolicy(referrer -> referrer.policy(
+                                org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter
+                                        .ReferrerPolicy.NO_REFERRER)))
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    // 🌍 Configuración CORS global
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
+    public CorsConfigurationSource corsConfigurationSource(SecurityProperties properties) {
+        List<String> origins = properties.getCors().getAllowedOrigins() == null
+                ? List.of()
+                : properties.getCors().getAllowedOrigins().stream()
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .toList();
+        if (origins.isEmpty() || origins.stream().anyMatch(origin -> origin.contains("*"))) {
+            throw new IllegalStateException(
+                    "CORS_ALLOWED_ORIGINS debe contener dominios exactos, sin comodines"
+            );
+        }
+        for (String origin : origins) {
+            try {
+                URI uri = URI.create(origin);
+                boolean validScheme = "http".equalsIgnoreCase(uri.getScheme())
+                        || "https".equalsIgnoreCase(uri.getScheme());
+                boolean validPath = !StringUtils.hasText(uri.getPath()) || "/".equals(uri.getPath());
+                if (!validScheme || !StringUtils.hasText(uri.getHost()) || !validPath
+                        || uri.getUserInfo() != null || uri.getQuery() != null || uri.getFragment() != null) {
+                    throw new IllegalArgumentException("Origen CORS inválido");
+                }
+            } catch (IllegalArgumentException exception) {
+                throw new IllegalStateException("CORS_ALLOWED_ORIGINS contiene un origen inválido", exception);
+            }
+        }
+
         CorsConfiguration configuration = new CorsConfiguration();
-
-        // ✅ Dominios permitidos (solo los que realmente usas)
-        configuration.setAllowedOrigins(List.of(
-                "http://localhost:5173",
-                "http://localhost:3000",
-                "https://fitnorius-gym.vercel.app",
-                "https://fitnorius-gym-git-main-juan-ks-projects-b6132ea5.vercel.app"
+        configuration.setAllowedOrigins(origins);
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of(
+                "Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With",
+                "X-Refresh-Request"
         ));
-
-        // ✅ Métodos HTTP permitidos
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
-
-        // ✅ Cabeceras permitidas
-        configuration.setAllowedHeaders(List.of("*"));
-
-        // ✅ Cabeceras expuestas al cliente
-        configuration.setExposedHeaders(List.of("Authorization", "Content-Type"));
-
-        // ✅ Permitir envío de cookies o headers de autenticación
+        configuration.setExposedHeaders(List.of());
         configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
 
-        // ✅ Aplica a todas las rutas
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
-
-        // 🧠 Log informativo (opcional)
-        System.out.println("✅ CORS habilitado para: " + configuration.getAllowedOrigins());
         return source;
     }
+
 }

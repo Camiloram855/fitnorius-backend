@@ -6,6 +6,7 @@ import com.camilo.fitnorius.model.Product;
 import com.camilo.fitnorius.repository.ImageRepository;
 import com.camilo.fitnorius.repository.ProductRepository;
 import com.camilo.fitnorius.repository.CategoryRepository;
+import com.camilo.fitnorius.security.ImageUploadValidator;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import jakarta.transaction.Transactional;
@@ -88,6 +89,7 @@ public class ImageService {
         List<Image> savedImages = new ArrayList<>();
 
         for (MultipartFile file : files) {
+            ImageUploadValidator.validate(file);
             try {
                 String folder = (product != null)
                         ? "fitnorius/products/gallery/"

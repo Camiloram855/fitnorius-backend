@@ -9,7 +9,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/header-messages")
-@CrossOrigin(origins = "*")
 public class HeaderMessageController {
 
     private final ObjectMapper mapper = new ObjectMapper();

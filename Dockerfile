@@ -2,25 +2,26 @@
 FROM maven:3.9.6-eclipse-temurin-17 AS builder
 WORKDIR /app
 
-# Copiar el pom.xml y descargar dependencias
 COPY pom.xml .
 RUN mvn dependency:go-offline -B
 
-# Copiar el código fuente
 COPY src ./src
 
-# Construir la aplicación (sin correr tests)
-RUN mvn clean package -DskipTests
+# Las pruebas usan H2 y no necesitan una base de datos externa.
+RUN mvn clean package -B
 
-# ---- Etapa 2: imagen final ----
-FROM eclipse-temurin:17-jdk-alpine
+# ---- Etapa 2: imagen final sin herramientas de compilación ----
+FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 
-# Copiar el jar generado desde la etapa anterior
-COPY --from=builder /app/target/*.jar app.jar
+RUN addgroup -S app && adduser -S -G app app \
+    && mkdir -p /app/uploads \
+    && chown -R app:app /app
 
-# Exponer el puerto (Render usa 10000 por defecto)
+COPY --from=builder /app/target/*.jar app.jar
+RUN chown app:app /app/app.jar
+
+USER app
 EXPOSE 10000
 
-# Comando de ejecución
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "/app/app.jar"]

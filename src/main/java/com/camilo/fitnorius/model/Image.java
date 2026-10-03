@@ -26,6 +26,7 @@ public class Image {
     /**
      * 🆔 Identificador público en Cloudinary (necesario para eliminar o reemplazar imágenes)
      */
+    @JsonIgnore
     @Column(name = "public_id", nullable = false, length = 255)
     private String publicId;
 

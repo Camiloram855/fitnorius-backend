@@ -7,15 +7,18 @@ import com.camilo.fitnorius.model.Image;
 import com.camilo.fitnorius.model.Product;
 import com.camilo.fitnorius.repository.CategoryRepository;
 import com.camilo.fitnorius.repository.ProductRepository;
+import com.camilo.fitnorius.security.ImageUploadValidator;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -42,6 +45,7 @@ public class ProductService {
     @Value("${cloudinary.api_secret}")
     private String apiSecret;
 
+    @Transactional
     public ProductDTO saveProduct(ProductDTO request, MultipartFile image) {
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new RuntimeException("Categoria no encontrada con ID: " + request.getCategoryId()));
@@ -69,6 +73,7 @@ public class ProductService {
         return mapToDTO(savedProduct);
     }
 
+    @Transactional
     public ProductDTO updateProduct(Long id, ProductDTO request, MultipartFile image) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + id));
@@ -100,6 +105,7 @@ public class ProductService {
         return mapToDTO(updatedProduct);
     }
 
+    @Transactional
     public ProductDTO updateProductHighlights(Long id, List<ProductHighlightDTO> highlights) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + id));
@@ -124,6 +130,7 @@ public class ProductService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<ProductDTO> getAllProducts() {
         return productRepository.findAllByOrderByDisplayOrderAscIdAsc()
                 .stream()
@@ -131,6 +138,7 @@ public class ProductService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public List<ProductDTO> getProductsByCategory(Long categoryId) {
         return productRepository.findByCategoryIdOrderByDisplayOrderAscIdAsc(categoryId)
                 .stream()
@@ -138,9 +146,12 @@ public class ProductService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public ProductDTO getProductById(Long id) {
         Product product = productRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + id));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Producto no encontrado"
+                ));
         return mapToDTO(product);
     }
 
@@ -158,6 +169,7 @@ public class ProductService {
         return false;
     }
 
+    @Transactional(readOnly = true)
     public List<ProductDTO> searchProducts(String query) {
         if (query == null || query.trim().isEmpty()) {
             return getAllProducts();
@@ -200,6 +212,7 @@ public class ProductService {
     }
 
     private String uploadToCloudinary(MultipartFile file, String folder) throws IOException {
+        ImageUploadValidator.validate(file);
         Cloudinary cloudinary = new Cloudinary(ObjectUtils.asMap(
                 "cloud_name", cloudName,
                 "api_key", apiKey,
@@ -232,6 +245,7 @@ public class ProductService {
                 .build();
     }
 
+    @Transactional
     public ProductDTO setAgotado(Long id, boolean estado) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado"));

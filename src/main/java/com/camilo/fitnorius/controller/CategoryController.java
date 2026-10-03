@@ -12,13 +12,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/categories")
-@CrossOrigin(origins = {
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "https://fitnorius-gym.vercel.app",
-        "https://fitnorius-gym-git-main-juan-ks-projects-b6132ea5.vercel.app",
-        "https://fitnorius-aghr9tnpz-juan-ks-projects-b6132ea5.vercel.app"
-})
 public class CategoryController {
 
     @Autowired

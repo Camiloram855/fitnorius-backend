@@ -24,17 +24,8 @@ public class WebConfig implements WebMvcConfigurer {
             productFolder.mkdirs(); // Crea carpeta si no existe
         }
 
-        // 🔹 Servir archivos /uploads/** → file:/app/uploads/
-        registry.addResourceHandler("/uploads/**")
-                .addResourceLocations("file:" + uploadBasePath + "/")
-                .setCachePeriod(3600)
-                .resourceChain(true);
-
-        // 🔹 Servir archivos /uploads/products/** → file:/app/uploads/products/
-        registry.addResourceHandler("/uploads/products/**")
-                .addResourceLocations("file:" + productUploadDir.toFile().getAbsolutePath() + "/")
-                .setCachePeriod(3600)
-                .resourceChain(true);
+        // Las imágenes locales se sirven únicamente mediante FileController,
+        // que valida el path y la extensión para evitar traversal.
 
         System.out.println("📁 Archivos estáticos servidos desde: " + uploadBasePath);
     }
