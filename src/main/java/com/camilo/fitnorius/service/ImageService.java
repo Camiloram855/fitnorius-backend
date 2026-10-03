@@ -12,7 +12,6 @@ import com.cloudinary.utils.ObjectUtils;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -30,30 +29,12 @@ public class ImageService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
 
-    // 🔹 Configuración de Cloudinary
-    @Value("${cloudinary.cloud_name}")
-    private String cloudName;
-
-    @Value("${cloudinary.api_key}")
-    private String apiKey;
-
-    @Value("${cloudinary.api_secret}")
-    private String apiSecret;
-
-    // 🔹 Cloudinary lazy (una sola instancia)
-    private Cloudinary cloudinary;
-
-    private Cloudinary getCloudinary() {
-        if (cloudinary == null) {
-            cloudinary = new Cloudinary(ObjectUtils.asMap(
-                    "cloud_name", cloudName,
-                    "api_key", apiKey,
-                    "api_secret", apiSecret
-            ));
-            log.info("Cloudinary inicializado correctamente");
-        }
-        return cloudinary;
-    }
+    /**
+     * Cliente de Cloudinary ya recortado y validado por CloudinaryConfig.
+     * Antes cada servicio construía el suyo con los valores en crudo, lo que
+     * hacía que un espacio invisible en las variables rompiera las subidas.
+     */
+    private final Cloudinary cloudinary;
 
     // ✅ Buscar imágenes por producto
     public List<Image> findByProductId(Long productId) {
@@ -95,7 +76,7 @@ public class ImageService {
                         ? "fitnorius/products/gallery/"
                         : "fitnorius/categories/gallery/";
 
-                Map uploadResult = getCloudinary()
+                Map uploadResult = cloudinary
                         .uploader()
                         .upload(file.getBytes(), ObjectUtils.asMap("folder", folder));
 
@@ -137,7 +118,7 @@ public class ImageService {
         return imageRepository.findById(id).map(img -> {
             try {
                 if (img.getPublicId() != null && !img.getPublicId().isEmpty()) {
-                    Map result = getCloudinary()
+                    Map result = cloudinary
                             .uploader()
                             .destroy(img.getPublicId(), ObjectUtils.emptyMap());
 

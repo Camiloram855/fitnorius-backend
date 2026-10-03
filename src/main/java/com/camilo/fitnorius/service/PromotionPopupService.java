@@ -6,7 +6,6 @@ import com.camilo.fitnorius.security.ImageUploadValidator;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,14 +22,9 @@ public class PromotionPopupService {
     @Autowired
     private PromotionPopupRepository repository;
 
-    @Value("${cloudinary.cloud_name}")
-    private String cloudName;
-
-    @Value("${cloudinary.api_key}")
-    private String apiKey;
-
-    @Value("${cloudinary.api_secret}")
-    private String apiSecret;
+    /** Cliente ya recortado y validado por CloudinaryConfig. */
+    @Autowired
+    private Cloudinary cloudinary;
 
     public PromotionPopup getCurrentPopup() {
         return repository.findFirstByOrderByIdAsc().orElse(null);
@@ -50,7 +44,6 @@ public class PromotionPopupService {
                 ImageUploadValidator.validate(file);
                 String previousPublicId = popup.getPublicId();
 
-                Cloudinary cloudinary = buildCloudinary();
                 Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap(
                         "folder", "fitnorius/promotion-popup/",
                         "transformation", "c_limit,w_1600,q_auto,f_auto"
@@ -99,15 +92,7 @@ public class PromotionPopupService {
     }
 
     private void deleteFromCloudinary(String publicId) throws IOException {
-        Cloudinary cloudinary = buildCloudinary();
         cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
     }
 
-    private Cloudinary buildCloudinary() {
-        return new Cloudinary(ObjectUtils.asMap(
-                "cloud_name", cloudName,
-                "api_key", apiKey,
-                "api_secret", apiSecret
-        ));
-    }
 }

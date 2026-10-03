@@ -5,7 +5,6 @@ import com.camilo.fitnorius.repository.PromoBannerRepository;
 import com.camilo.fitnorius.security.ImageUploadValidator;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,18 +28,11 @@ public class PromoBannerService {
     private static final int MAX_SUBTITLE = 255;
 
     private final PromoBannerRepository repository;
+    private final Cloudinary cloudinary;
 
-    @Value("${cloudinary.cloud_name}")
-    private String cloudName;
-
-    @Value("${cloudinary.api_key}")
-    private String apiKey;
-
-    @Value("${cloudinary.api_secret}")
-    private String apiSecret;
-
-    public PromoBannerService(PromoBannerRepository repository) {
+    public PromoBannerService(PromoBannerRepository repository, Cloudinary cloudinary) {
         this.repository = repository;
+        this.cloudinary = cloudinary;
     }
 
     /** Banner vigente o null si el administrador aún no ha configurado ninguno. */
@@ -63,7 +55,7 @@ public class PromoBannerService {
             ImageUploadValidator.validate(file);
             String previousPublicId = banner.getPublicId();
             try {
-                Map uploadResult = buildCloudinary().uploader().upload(file.getBytes(), ObjectUtils.asMap(
+                Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap(
                         "folder", FOLDER,
                         "transformation", "c_limit,w_1600,q_auto,f_auto"
                 ));
@@ -73,7 +65,7 @@ public class PromoBannerService {
                 // El asset anterior se elimina para no dejar basura en Cloudinary.
                 if (StringUtils.hasText(previousPublicId)) {
                     try {
-                        buildCloudinary().uploader().destroy(previousPublicId, ObjectUtils.emptyMap());
+                        cloudinary.uploader().destroy(previousPublicId, ObjectUtils.emptyMap());
                     } catch (IOException ignored) {
                         // No se interrumpe el guardado si falla la limpieza.
                     }
@@ -116,7 +108,7 @@ public class PromoBannerService {
         repository.findFirstByOrderByIdAsc().ifPresent(banner -> {
             if (StringUtils.hasText(banner.getPublicId())) {
                 try {
-                    buildCloudinary().uploader().destroy(banner.getPublicId(), ObjectUtils.emptyMap());
+                    cloudinary.uploader().destroy(banner.getPublicId(), ObjectUtils.emptyMap());
                 } catch (IOException exception) {
                     throw new ResponseStatusException(
                             HttpStatus.INTERNAL_SERVER_ERROR, "Error al eliminar la imagen del banner", exception);
@@ -146,13 +138,5 @@ public class PromoBannerService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El texto del banner es demasiado largo");
         }
         return trimmed;
-    }
-
-    private Cloudinary buildCloudinary() {
-        return new Cloudinary(ObjectUtils.asMap(
-                "cloud_name", cloudName,
-                "api_key", apiKey,
-                "api_secret", apiSecret
-        ));
     }
 }

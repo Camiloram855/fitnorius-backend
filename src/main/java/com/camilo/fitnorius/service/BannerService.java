@@ -22,14 +22,12 @@ public class BannerService {
     @Autowired
     private BannerRepository bannerRepository;
 
+    /** Cliente ya recortado y validado por CloudinaryConfig. */
+    @Autowired
+    private Cloudinary cloudinary;
+
     @Value("${cloudinary.cloud_name}")
     private String cloudName;
-
-    @Value("${cloudinary.api_key}")
-    private String apiKey;
-
-    @Value("${cloudinary.api_secret}")
-    private String apiSecret;
 
     // Compatibilidad con cliente existente
     public Banner getCurrentBanner() {
@@ -52,12 +50,6 @@ public class BannerService {
     public Banner saveBanner(MultipartFile file) {
         ImageUploadValidator.validate(file);
         try {
-            Cloudinary cloudinary = new Cloudinary(ObjectUtils.asMap(
-                    "cloud_name", cloudName,
-                    "api_key", apiKey,
-                    "api_secret", apiSecret
-            ));
-
             Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap(
                     "folder", "fitnorius/banner/",
                     "transformation", "c_fit,w_1920,h_720"

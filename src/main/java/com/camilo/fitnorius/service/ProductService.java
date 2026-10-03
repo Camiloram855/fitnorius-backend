@@ -34,16 +34,8 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final ImageService imageService;
+    private final Cloudinary cloudinary;
     private final ObjectMapper objectMapper = new ObjectMapper();
-
-    @Value("${cloudinary.cloud_name}")
-    private String cloudName;
-
-    @Value("${cloudinary.api_key}")
-    private String apiKey;
-
-    @Value("${cloudinary.api_secret}")
-    private String apiSecret;
 
     @Transactional
     public ProductDTO saveProduct(ProductDTO request, MultipartFile image) {
@@ -213,12 +205,7 @@ public class ProductService {
 
     private String uploadToCloudinary(MultipartFile file, String folder) throws IOException {
         ImageUploadValidator.validate(file);
-        Cloudinary cloudinary = new Cloudinary(ObjectUtils.asMap(
-                "cloud_name", cloudName,
-                "api_key", apiKey,
-                "api_secret", apiSecret
-        ));
-
+        // Cliente ya recortado por CloudinaryConfig.
         Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap(
                 "folder", folder
         ));
