@@ -1,5 +1,6 @@
 package com.camilo.fitnorius.security;
 
+import com.camilo.fitnorius.exception.ImageValidationException;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -23,10 +24,10 @@ public final class ImageUploadValidator {
 
     public static void validate(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException("El archivo de imagen es obligatorio");
+            throw new ImageValidationException("El archivo de imagen es obligatorio");
         }
         if (file.getSize() > MAX_BYTES) {
-            throw new IllegalArgumentException("La imagen supera el tamaño máximo permitido");
+            throw new ImageValidationException("La imagen supera el tamaño máximo permitido");
         }
 
         String contentType = file.getContentType() == null
@@ -37,16 +38,16 @@ public final class ImageUploadValidator {
                 : file.getOriginalFilename().toLowerCase(Locale.ROOT);
         boolean validExtension = EXTENSIONS.stream().anyMatch(filename::endsWith);
         if (!CONTENT_TYPES.contains(contentType) || !validExtension) {
-            throw new IllegalArgumentException("El archivo debe ser una imagen compatible");
+            throw new ImageValidationException("El archivo debe ser una imagen compatible");
         }
 
         try (InputStream inputStream = file.getInputStream()) {
             byte[] header = inputStream.readNBytes(12);
             if (!hasImageSignature(header)) {
-                throw new IllegalArgumentException("El contenido del archivo no es una imagen válida");
+                throw new ImageValidationException("El contenido del archivo no es una imagen válida");
             }
         } catch (IOException exception) {
-            throw new IllegalArgumentException("No se pudo validar el archivo de imagen", exception);
+            throw new ImageValidationException("No se pudo validar el archivo de imagen", exception);
         }
     }
 

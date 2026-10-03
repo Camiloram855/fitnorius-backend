@@ -1,5 +1,6 @@
 package com.camilo.fitnorius.security;
 
+import com.camilo.fitnorius.exception.ImageValidationException;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
 
@@ -27,6 +28,6 @@ class ImageUploadValidatorTest {
                 "file", "photo.png", "image/png", "<script>alert(1)</script>".getBytes()
         );
 
-        assertThrows(IllegalArgumentException.class, () -> ImageUploadValidator.validate(file));
+        assertThrows(ImageValidationException.class, () -> ImageUploadValidator.validate(file));
     }
 }

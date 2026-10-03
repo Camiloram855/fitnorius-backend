@@ -43,6 +43,13 @@ public class ApiExceptionHandler {
                 ));
     }
 
+    @ExceptionHandler(ImageValidationException.class)
+    public ResponseEntity<ApiErrorResponse> imageValidation(ImageValidationException exception) {
+        // Se devuelve el motivo concreto: "formato no válido" y "supera el
+        // tamaño máximo" son errores muy distintos para quien está subiendo.
+        return error(HttpStatus.BAD_REQUEST, exception.getMessage());
+    }
+
     @ExceptionHandler(ImageStorageException.class)
     public ResponseEntity<ApiErrorResponse> imageStorage(ImageStorageException exception) {
         log.error("Fallo al guardar la imagen: {} - {}",
