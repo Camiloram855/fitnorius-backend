@@ -2,6 +2,7 @@ package com.camilo.fitnorius.service;
 
 import com.camilo.fitnorius.model.PromotionPopup;
 import com.camilo.fitnorius.repository.PromotionPopupRepository;
+import com.camilo.fitnorius.security.ImageUploadValidator;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,6 +47,7 @@ public class PromotionPopupService {
             }
 
             if (file != null && !file.isEmpty()) {
+                ImageUploadValidator.validate(file);
                 String previousPublicId = popup.getPublicId();
 
                 Cloudinary cloudinary = buildCloudinary();

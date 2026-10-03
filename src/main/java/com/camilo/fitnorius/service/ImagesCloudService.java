@@ -2,6 +2,7 @@ package com.camilo.fitnorius.service;
 
 import com.camilo.fitnorius.model.ImagesCloud;
 import com.camilo.fitnorius.repository.ImagesCloudRepository;
+import com.camilo.fitnorius.security.ImageUploadValidator;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ public class ImagesCloudService {
 
     // ✅ Subir imagen a Cloudinary
     public ImagesCloud upload(MultipartFile file) throws IOException {
+        ImageUploadValidator.validate(file);
 
         try {
             Map uploadResult = cloudinary.uploader()

@@ -28,6 +28,7 @@ public class Category {
     private String imageUrl;
 
     // 🆔 ID público en Cloudinary (para eliminar/actualizar desde el backend)
+    @JsonIgnore
     @Column(name = "cloudinary_public_id", length = 255)
     private String cloudinaryPublicId;
 

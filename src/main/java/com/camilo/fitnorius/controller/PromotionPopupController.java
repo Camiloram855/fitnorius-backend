@@ -9,12 +9,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/promotion-popup")
-@CrossOrigin(origins = {
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "https://fitnorius-gym.vercel.app",
-        "https://fitnorius-gym-git-main-juan-ks-projects-b6132ea5.vercel.app"
-})
 public class PromotionPopupController {
 
     @Autowired

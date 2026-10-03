@@ -15,10 +15,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/images-cloud")
-@CrossOrigin(origins = {
-        "http://localhost:5173",
-        "https://fitnorius-gym.vercel.app"
-})
 @RequiredArgsConstructor
 public class ImagesCloudController {
 

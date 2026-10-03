@@ -2,6 +2,7 @@ package com.camilo.fitnorius.service;
 
 import com.camilo.fitnorius.model.Banner;
 import com.camilo.fitnorius.repository.BannerRepository;
+import com.camilo.fitnorius.security.ImageUploadValidator;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +50,7 @@ public class BannerService {
 
     // Sube una nueva imagen a Cloudinary y la guarda como slide
     public Banner saveBanner(MultipartFile file) {
+        ImageUploadValidator.validate(file);
         try {
             Cloudinary cloudinary = new Cloudinary(ObjectUtils.asMap(
                     "cloud_name", cloudName,

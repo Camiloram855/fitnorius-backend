@@ -3,6 +3,7 @@ package com.camilo.fitnorius.service;
 import com.camilo.fitnorius.model.Category;
 import com.camilo.fitnorius.repository.CategoryRepository;
 import com.camilo.fitnorius.repository.ProductRepository;
+import com.camilo.fitnorius.security.ImageUploadValidator;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import lombok.RequiredArgsConstructor;
@@ -26,17 +27,17 @@ public class CategoryService {
     private final Cloudinary cloudinary;
 
     /**
-     * ðŸ“¦ Obtener todas las categorÃ­as (CACHEADO)
+     * Obtener todas las categori­as (CACHEADO)
      */
     @Cacheable(value = "categories")
     public List<Category> getAllCategories() {
-        System.out.println("ðŸ“¦ CategorÃ­as desde BD");
+        System.out.println("Categorías desde BD");
         return categoryRepository.findAll();
     }
 
     /**
-     * ðŸ†• Crear categorÃ­a con subida a Cloudinary
-     * ðŸ§¹ Limpia cache
+     * Crear categori­a con subida a Cloudinary
+     * Limpia cache
      */
     @CacheEvict(value = "categories", allEntries = true)
     public Category createCategory(String name, MultipartFile imageFile) throws IOException {
@@ -44,6 +45,7 @@ public class CategoryService {
         category.setName(name);
 
         if (imageFile != null && !imageFile.isEmpty()) {
+            ImageUploadValidator.validate(imageFile);
             Map uploadResult = cloudinary.uploader().upload(
                     imageFile.getBytes(),
                     ObjectUtils.asMap(
@@ -51,8 +53,6 @@ public class CategoryService {
                             "resource_type", "image"
                     )
             );
-
-            System.out.println("ðŸ“¸ Resultado Cloudinary (Category): " + uploadResult);
 
             String secureUrl = (String) uploadResult.get("secure_url");
             String publicId = (String) uploadResult.get("public_id");
@@ -64,18 +64,19 @@ public class CategoryService {
     }
 
     /**
-     * ðŸ”„ Actualizar categorÃ­a
-     * ðŸ§¹ Limpia cache
+     * Actualizar categori­a
+     * Limpia cache
      */
     @Transactional
     @CacheEvict(value = "categories", allEntries = true)
     public Category updateCategory(Long id, String name, MultipartFile imageFile) throws IOException {
         Category category = categoryRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("âŒ CategorÃ­a no encontrada con ID: " + id));
+                .orElseThrow(() -> new RuntimeException("Categoría no encontrada con ID: " + id));
 
         category.setName(name);
 
         if (imageFile != null && !imageFile.isEmpty()) {
+            ImageUploadValidator.validate(imageFile);
             deleteCategoryImage(category);
 
             Map uploadResult = cloudinary.uploader().upload(
@@ -86,8 +87,6 @@ public class CategoryService {
                     )
             );
 
-            System.out.println("ðŸ“¸ Resultado Cloudinary (Update): " + uploadResult);
-
             String secureUrl = (String) uploadResult.get("secure_url");
             String publicId = (String) uploadResult.get("public_id");
 
@@ -98,8 +97,8 @@ public class CategoryService {
     }
 
     /**
-     * âŒ Eliminar categorÃ­a
-     * ðŸ§¹ Limpia cache
+     * Eliminar categori­a
+     *  Limpia cache
      */
     @Transactional
     @CacheEvict(value = "categories", allEntries = true)
@@ -110,7 +109,7 @@ public class CategoryService {
         Category category = categoryOpt.get();
 
         if (!productRepository.findByCategoryIdOrderByDisplayOrderAscIdAsc(id).isEmpty()) {
-            throw new IllegalStateException("âš ï¸ No se puede eliminar la categorÃ­a porque tiene productos asociados.");
+            throw new IllegalStateException("No se puede eliminar la categori­a porque tiene productos asociados.");
         }
 
         deleteCategoryImage(category);
@@ -119,8 +118,8 @@ public class CategoryService {
     }
 
     /**
-     * ðŸ§¹ Eliminar categorÃ­a junto con productos
-     * ðŸ§¹ Limpia cache
+     * Eliminar categori­a junto con productos
+     *  Limpia cache
      */
     @Transactional
     @CacheEvict(value = "categories", allEntries = true)
@@ -136,16 +135,16 @@ public class CategoryService {
     }
 
     /**
-     * ðŸ—‘ï¸ Eliminar imagen de Cloudinary
+     * Eliminar imagen de Cloudinary
      */
     private void deleteCategoryImage(Category category) {
         try {
             if (category.getCloudinaryPublicId() != null) {
                 cloudinary.uploader().destroy(category.getCloudinaryPublicId(), ObjectUtils.emptyMap());
-                System.out.println("ðŸ—‘ï¸ Imagen eliminada de Cloudinary: " + category.getCloudinaryPublicId());
+                System.out.println("Imagen eliminada de Cloudinary: " + category.getCloudinaryPublicId());
             }
         } catch (Exception e) {
-            System.err.println("âš ï¸ Error eliminando imagen de Cloudinary: " + e.getMessage());
+            System.err.println("Error eliminando imagen de Cloudinary: " + e.getMessage());
         }
     }
 }

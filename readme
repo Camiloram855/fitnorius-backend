@@ -1,0 +1,24 @@
+para inicializar en ambiente dev es necesario ingresar con 
+mvn spring-boot:run "-Dspring-boot.run.profiles=local"
+
+.\mvnw.cmd spring-boot:run  
+.\run-local.ps1           
+
+
+Para generar token
+
+$b = [byte[]]::new(48)
+$r = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+$r.GetBytes($b)
+$r.Dispose()
+
+$env:JWT_SECRET = [Convert]::ToBase64String($b)
+Write-Host "JWT_SECRET creado: $($env:JWT_SECRET.Length) caracteres"
+
+
+
+Para visualizar el token
+## $env:JWT_SECRET
+
+
+## $env:JWT_SECRET = [Convert]::ToBase64String($bytes)
