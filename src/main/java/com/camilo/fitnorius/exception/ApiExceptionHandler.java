@@ -43,6 +43,15 @@ public class ApiExceptionHandler {
                 ));
     }
 
+    @ExceptionHandler(ImageStorageException.class)
+    public ResponseEntity<ApiErrorResponse> imageStorage(ImageStorageException exception) {
+        log.error("Fallo al guardar la imagen: {} - {}",
+                exception.getClass().getName(), exception.getMessage(), exception);
+        return error(HttpStatus.BAD_GATEWAY,
+                "No se pudo subir la imagen. El almacenamiento de imágenes no está "
+                        + "configurado o rechazó el archivo.");
+    }
+
     @ExceptionHandler(WeakPasswordException.class)
     public ResponseEntity<ApiErrorResponse> weakPassword(WeakPasswordException exception) {
         return error(HttpStatus.BAD_REQUEST, exception.getMessage());
@@ -92,8 +101,24 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> unexpected(Exception exception) {
-        // No se registra el cuerpo de la petición para evitar filtrar tokens o PII.
-        log.error("Error no controlado: {}", exception.getClass().getSimpleName());
+        // Antes solo se registraba el nombre de la clase, lo que oculta la causa
+        // real (por ejemplo credenciales de Cloudinary ausentes) y obliga a
+        // depurar a ciegas. Ahora se registra el mensaje y la traza completa.
+        // La respuesta al cliente sigue siendo genérica: no se filtran datos.
+        log.error("Error no controlado: {} - {}",
+                exception.getClass().getName(),
+                exception.getMessage(),
+                exception);
+
+        // Causa más profunda: suele ser la que explica el fallo real.
+        Throwable root = exception;
+        while (root.getCause() != null && root.getCause() != root) {
+            root = root.getCause();
+        }
+        if (root != exception) {
+            log.error("Causa raiz: {} - {}", root.getClass().getName(), root.getMessage());
+        }
+
         return error(HttpStatus.INTERNAL_SERVER_ERROR, "Ocurrió un error inesperado");
     }
 
